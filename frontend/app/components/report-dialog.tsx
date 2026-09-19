@@ -1,0 +1,13 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+import { apiRequest } from "../../lib/api";
+
+const categories = [["fake_profile", "Fake profile"], ["harassment", "Harassment"], ["spam", "Spam"], ["inappropriate", "Inappropriate content"], ["safety", "Safety concern"], ["other", "Other"]];
+
+export function ReportDialog({ profileId, name, onClose }: { profileId: string; name: string; onClose: () => void }) {
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const token = sessionStorage.getItem("access_token"); if (!token) return setError("Please log in first."); const form = new FormData(event.currentTarget); try { await apiRequest("/reports/", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ target_profile_id: profileId, category: form.get("category"), details: form.get("details") }) }); setDone(true); } catch { setError("We couldn’t send the report. Please try again."); } }
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-stone-950/40 p-5" role="dialog" aria-modal="true"><section className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"><div className="flex items-start justify-between"><div><p className="text-sm font-bold uppercase tracking-[.15em] text-rose-600">Safety</p><h2 className="mt-1 text-2xl font-bold">Report {name}</h2></div><button className="rounded-lg px-2 text-xl text-stone-500" onClick={onClose} aria-label="Close">×</button></div>{done ? <div className="notice-success mt-6">Thank you. Your report has been sent privately to the moderation team.<button className="mt-3 block font-semibold underline" onClick={onClose}>Close</button></div> : <form className="mt-6 space-y-4" onSubmit={submit}><label><span className="label">What happened?</span><select className="field" name="category" defaultValue="" required><option value="" disabled>Select a reason</option>{categories.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label><span className="label">Additional details <span className="font-normal text-stone-400">(optional)</span></span><textarea className="field" name="details" rows={4} maxLength={500} placeholder="Share anything that may help us review this." /></label>{error && <p className="notice-error">{error}</p>}<div className="flex gap-3"><button className="btn-secondary flex-1" type="button" onClick={onClose}>Cancel</button><button className="btn-primary flex-1" type="submit">Send report</button></div></form>}</section></div>;
+}

@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "apps.discovery",
     "apps.interests",
     "apps.matches",
+    "apps.moderation",
 ]
 
 MIDDLEWARE = [

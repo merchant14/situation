@@ -1,4 +1,5 @@
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -7,6 +8,7 @@ from drf_spectacular.utils import extend_schema
 
 from apps.matches.models import Match
 from apps.profiles.models import Profile
+from apps.moderation.models import Block
 
 from .models import Interest
 from .serializers import InterestActionSerializer
@@ -23,6 +25,8 @@ class InterestActionView(APIView):
         target = get_object_or_404(Profile, public_id=serializer.validated_data["target_profile_id"], is_active=True)
         if target.user_id == request.user.id:
             return Response({"detail": "You cannot act on your own profile."}, status=status.HTTP_400_BAD_REQUEST)
+        if Block.objects.filter(Q(blocker=request.user, blocked=target.user) | Q(blocker=target.user, blocked=request.user)).exists():
+            return Response({"detail": "This action is unavailable."}, status=status.HTTP_403_FORBIDDEN)
 
         with transaction.atomic():
             interest, _ = Interest.objects.update_or_create(

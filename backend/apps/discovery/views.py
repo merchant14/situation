@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions
 
 from apps.profiles.models import Profile
+from apps.moderation.models import Block
 
 from .serializers import DiscoveryProfileSerializer
 
@@ -10,9 +11,13 @@ class DiscoveryListView(generics.ListAPIView):
     serializer_class = DiscoveryProfileSerializer
 
     def get_queryset(self):
+        blocked_ids = Block.objects.filter(blocker=self.request.user).values("blocked")
+        blocking_ids = Block.objects.filter(blocked=self.request.user).values("blocker")
         return (
             Profile.objects.filter(is_active=True, user__is_active=True, user__preferences__isnull=False)
             .exclude(user=self.request.user)
+            .exclude(user__in=blocked_ids)
+            .exclude(user__in=blocking_ids)
             .select_related("user", "user__preferences")
             .order_by("-created_at")
         )
