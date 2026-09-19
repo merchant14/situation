@@ -27,15 +27,13 @@ export default function LoginPage() {
     }
   }
 
-  return <main className="mx-auto max-w-md px-6 py-16">
-    <h1 className="text-3xl font-semibold">Welcome back</h1>
-    {complete ? <p className="mt-6 rounded bg-emerald-50 p-4 text-emerald-800">You are signed in. <Link className="underline" href="/profile/setup">Create your profile</Link>.</p> :
-      <form className="mt-8 space-y-4" onSubmit={submit}>
-        <input aria-label="Email" className="w-full rounded border p-3" name="email" type="email" placeholder="Email" required />
-        <input aria-label="Password" className="w-full rounded border p-3" name="password" type="password" placeholder="Password" required />
-        {error && <p className="text-sm text-red-700">{error}</p>}
-        <button className="w-full rounded bg-stone-900 p-3 text-white" type="submit">Log in</button>
+  return <main className="auth-page"><section className="max-w-xl"><p className="text-sm font-bold uppercase tracking-[.2em] text-rose-600">Welcome back</p><h1 className="mt-4 text-4xl font-bold tracking-tight text-rose-950 sm:text-6xl">Pick up where you left off.</h1><p className="mt-5 text-lg leading-8 text-stone-600">Your matches, preferences, and profile are waiting.</p></section><section className="form-card"><h2 className="text-2xl font-bold">Log in</h2>{complete ? <p className="notice-success mt-6">You are signed in. <Link className="font-semibold underline" href="/profile/setup">Create your profile</Link>.</p> :
+      <form className="mt-7 space-y-5" onSubmit={submit}>
+        <label><span className="label">Email address</span><input aria-label="Email" className="field" name="email" type="email" placeholder="you@example.com" required /></label>
+        <label><span className="label">Password</span><input aria-label="Password" className="field" name="password" type="password" placeholder="Your password" required /></label>
+        {error && <p className="notice-error">{error}</p>}
+        <button className="btn-primary w-full" type="submit">Log in</button>
       </form>}
     <p className="mt-6 text-sm text-stone-600">New here? <Link className="underline" href="/signup">Create an account</Link>.</p>
-  </main>;
+  </section></main>;
 }
