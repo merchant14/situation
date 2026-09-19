@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { apiRequest } from "../../lib/api";
 import { ReportDialog } from "../components/report-dialog";
 
-type Profile = { public_id: string; display_name: string; age: number; gender: string; city: string; bio: string; connection_goal: string; connection_style: string; exclusivity: string; meeting_frequency: string };
+type Profile = { public_id: string; display_name: string; age: number; gender: string; city: string; bio: string; connection_goal: string; connection_style: string; exclusivity: string; meeting_frequency: string; photo_url?: string };
 type DiscoveryResponse = { count: number; results: Profile[] };
 
 export default function DiscoverPage() {
