@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
 import { apiRequest } from "../../../lib/api";
@@ -10,6 +11,7 @@ export default function ProfileSetupPage() {
   const [error, setError] = useState("");
   const [existing, setExisting] = useState<Record<string, string> | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const token = sessionStorage.getItem("access_token");
@@ -41,6 +43,7 @@ export default function ProfileSetupPage() {
         }),
       });
       setMessage(existing ? "Your profile changes have been saved." : "Your profile has been created. Next, set your connection preferences.");
+      window.setTimeout(() => router.push("/preferences"), 700);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to save profile.");
     }
