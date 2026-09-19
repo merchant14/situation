@@ -24,6 +24,8 @@ INSTALLED_APPS = [
     "apps.profiles",
     "apps.preferences",
     "apps.discovery",
+    "apps.interests",
+    "apps.matches",
 ]
 
 MIDDLEWARE = [

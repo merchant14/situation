@@ -31,6 +31,8 @@ urlpatterns = [
     path("profile/", include("apps.profiles.urls")),
     path("preferences/", include("apps.preferences.urls")),
     path("discover/", include("apps.discovery.urls")),
+    path("interests/", include("apps.interests.urls")),
+    path("matches/", include("apps.matches.urls")),
     path("", api_root, name="api-root"),
     path("health/", health_check, name="health-check"),
 ]
