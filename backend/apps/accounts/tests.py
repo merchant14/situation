@@ -119,3 +119,21 @@ class AuthenticationApiTests(APITestCase):
         self.assertEqual(profile["age"], 31)
         self.assertNotIn("email", profile)
         self.assertNotIn("date_of_birth", profile)
+
+    def test_mutual_interest_creates_one_match_and_can_be_unmatched(self):
+        user_model = get_user_model()
+        first = user_model.objects.create_user(username="first", email="first@example.com", password="CorrectHorseBatteryStaple42!", date_of_birth="2000-01-01")
+        second = user_model.objects.create_user(username="second", email="second@example.com", password="CorrectHorseBatteryStaple42!", date_of_birth="1999-01-01")
+        from apps.profiles.models import Profile
+        first_profile = Profile.objects.create(user=first, display_name="First", gender="woman", city="Pune")
+        second_profile = Profile.objects.create(user=second, display_name="Second", gender="man", city="Mumbai")
+        self.client.force_authenticate(first)
+        first_action = self.client.post("/api/v1/interests/", {"target_profile_id": str(second_profile.public_id), "decision": "interested"}, format="json")
+        self.client.force_authenticate(second)
+        second_action = self.client.post("/api/v1/interests/", {"target_profile_id": str(first_profile.public_id), "decision": "interested"}, format="json")
+        matches = self.client.get("/api/v1/matches/")
+        self.client.delete(f"/api/v1/matches/{second_action.data['data']['match_id']}/")
+
+        self.assertFalse(first_action.data["data"]["matched"])
+        self.assertTrue(second_action.data["data"]["matched"])
+        self.assertEqual(matches.data["count"], 1)

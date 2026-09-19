@@ -1,0 +1,20 @@
+from datetime import date
+from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
+from .models import Match
+
+
+class MatchSerializer(serializers.ModelSerializer):
+    profile = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Match
+        fields = ("public_id", "profile", "created_at")
+
+    @extend_schema_field(serializers.DictField())
+    def get_profile(self, match) -> dict:
+        other = match.user_two if match.user_one_id == self.context["request"].user.id else match.user_one
+        profile = other.profile
+        today = date.today()
+        age = today.year - other.date_of_birth.year - ((today.month, today.day) < (other.date_of_birth.month, other.date_of_birth.day))
+        return {"public_id": str(profile.public_id), "display_name": profile.display_name, "age": age, "city": profile.city}
