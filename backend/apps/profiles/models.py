@@ -18,6 +18,7 @@ class Profile(models.Model):
     gender = models.CharField(max_length=20, choices=Gender.choices)
     city = models.CharField(max_length=100)
     bio = models.CharField(max_length=500, blank=True)
+    photo = models.ImageField(upload_to="profiles/%Y/%m/%d", null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
