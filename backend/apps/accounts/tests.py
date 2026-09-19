@@ -35,7 +35,7 @@ class AuthenticationApiTests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("date_of_birth", response.data)
+        self.assertIn("date_of_birth", response.data["errors"])
 
     def test_login_and_authenticated_me_endpoint(self):
         self.client.post("/api/v1/auth/register/", self.registration_payload(), format="json")
