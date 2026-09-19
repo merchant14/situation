@@ -20,7 +20,7 @@ compose.yaml      PostgreSQL, backend, frontend services
 
 1. Copy `.env.example` to `.env` and replace development secrets.
 2. Run `docker compose up --build`.
-3. Open `http://localhost:3000` for the frontend and `http://localhost:8000/api/v1/health/` for the API health check.
+3. Open `http://localhost:3000` for the frontend and `http://localhost:8001/api/v1/health/` for the API health check.
 
 The backend runs migrations on startup. PostgreSQL data persists in the `postgres_data` Docker volume.
 
@@ -42,7 +42,11 @@ With Docker running, check PostgreSQL connectivity and migrations through `docke
 
 ## API
 
-`GET /api/v1/health/` is the only current API endpoint. Versioned routes for product features will be added in subsequent stages.
+`GET /api/v1/health/` confirms API availability. The initial account endpoints are `POST /api/v1/auth/register/`, `POST /api/v1/auth/login/`, `POST /api/v1/auth/refresh/`, and authenticated `GET /api/v1/auth/me/`. Registration accepts an email, password, and date of birth; users under 18 are rejected.
+
+Authenticated profile setup uses `POST`, `GET`, and `PATCH /api/v1/profile/me/`; the same methods are available at `/api/v1/preferences/me/` for the four connection questions. `GET /api/v1/discover/` returns paginated active profiles with preferences, excluding the requester and private account data. Replace the development signing key before any deployment.
+
+OpenAPI JSON is available at `/api/schema/`; Swagger UI is available at `/api/docs/`. Use the Swagger **Authorize** control with `Bearer <access token>` for authenticated endpoint exploration.
 
 ## Deployment notes
 
