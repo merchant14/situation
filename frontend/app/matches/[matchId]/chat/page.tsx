@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { apiRequest } from "../../../../lib/api";
 
 type Message = { id: string; sender_id: number; body: string; created_at: string };
 type MatchProfile = { display_name: string; photo_url?: string };
 
 export default function ChatPage({ params }: { params: { matchId: string } }) {
-  const matchId = params.matchId;
+  const paramsObj = React.use(params) as { matchId: string };
+  const matchId = paramsObj.matchId;
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
