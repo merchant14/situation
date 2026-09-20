@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import { apiRequest } from "../../lib/api";
 
 type LoginResponse = { success: true; data: { access: string; refresh: string } };
+type CurrentUser = { id: number; email: string; date_of_birth: string; date_joined: string };
 
 export default function LoginPage() {
   const [error, setError] = useState("");
@@ -21,6 +22,13 @@ export default function LoginPage() {
         body: JSON.stringify({ email: form.get("email"), password: form.get("password") }),
       });
       sessionStorage.setItem("access_token", response.data.access);
+      
+      // Fetch current user to store user ID
+      const currentUserResp = await apiRequest<CurrentUser>("/auth/me/", {
+        headers: { Authorization: `Bearer ${response.data.access}` },
+      });
+      sessionStorage.setItem("user_id", String(currentUserResp.id));
+      
       setComplete(true);
     } catch {
       setError("Email or password is incorrect.");
