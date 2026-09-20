@@ -45,7 +45,7 @@ export default function ProfileSetupPage() {
         if (!res.ok) throw new Error((await res.json()).message || "Upload failed");
       });
       setMessage(existing ? "Your profile changes have been saved." : "Your profile has been created. Next, set your connection preferences.");
-      window.setTimeout(() => router.push("/preferences"), 700);
+      window.setTimeout(() => router.push(existing ? "/profile" : "/preferences"), 700);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to save profile.");
     }
