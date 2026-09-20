@@ -1,5 +1,6 @@
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -44,3 +45,45 @@ class MarkMessagesAsReadView(generics.CreateAPIView):
         Message.objects.filter(match=match, sender=other_user, is_read=False).update(is_read=True)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class UpdateMessageView(generics.UpdateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = MessageSerializer
+
+    def get_object(self):
+        match_id = self.kwargs.get("match_id")
+        message_id = self.kwargs.get("message_id")
+        match = get_object_or_404(Match, public_id=match_id)
+        if not (match.user_one == self.request.user or match.user_two == self.request.user):
+            self.permission_denied(self.request, "Not a match participant")
+        message = get_object_or_404(Message, id=message_id, match=match)
+        if message.sender != self.request.user:
+            self.permission_denied(self.request, "Can only edit own messages")
+        if message.is_deleted:
+            self.permission_denied(self.request, "Cannot edit deleted messages")
+        return message
+
+    def perform_update(self, serializer):
+        serializer.save(edited_at=timezone.now())
+
+
+class DeleteMessageView(generics.DestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = MessageSerializer
+
+    def get_object(self):
+        match_id = self.kwargs.get("match_id")
+        message_id = self.kwargs.get("message_id")
+        match = get_object_or_404(Match, public_id=match_id)
+        if not (match.user_one == self.request.user or match.user_two == self.request.user):
+            self.permission_denied(self.request, "Not a match participant")
+        message = get_object_or_404(Message, id=message_id, match=match)
+        if message.sender != self.request.user:
+            self.permission_denied(self.request, "Can only delete own messages")
+        return message
+
+    def perform_destroy(self, instance):
+        instance.is_deleted = True
+        instance.body = "[This message was deleted]"
+        instance.save()

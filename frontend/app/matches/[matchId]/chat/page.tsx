@@ -5,8 +5,32 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import { apiRequest } from "../../../../lib/api";
 
-type Message = { id: string; sender_id: number; body: string; created_at: string };
+type Message = { 
+  id: string; 
+  sender_id: number; 
+  body: string; 
+  created_at: string;
+  edited_at?: string;
+  is_edited: boolean;
+  is_deleted: boolean;
+};
+
 type MatchProfile = { display_name: string; photo_url?: string };
+
+function formatTime(isoString: string) {
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return "now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
 
 export default function ChatPage({ params }: { params: { matchId: string } }) {
   const paramsObj = React.use(params) as { matchId: string };
@@ -18,30 +42,33 @@ export default function ChatPage({ params }: { params: { matchId: string } }) {
   const [profile, setProfile] = useState<MatchProfile | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+
+  const userId = typeof window !== "undefined" ? sessionStorage.getItem("user_id") : null;
 
   useEffect(() => {
     const token = sessionStorage.getItem("access_token");
     if (!token) { setError("Log in to open chat."); setLoading(false); return; }
 
-    // mark as read
     fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001/api/v1"}/chat/${matchId}/messages/read/`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }).catch(() => {});
 
-    // load messages
     apiRequest<{ results: Message[]; profile: MatchProfile }>(`/chat/${matchId}/messages/`, { headers: { Authorization: `Bearer ${token}` } })
       .then((data) => {
-        setMessages(data.results || []);
-        // some APIs may return the other user's profile with the messages
+        const msgs = (data as any).results || (Array.isArray(data) ? data : []);
+        setMessages(msgs.filter((m: any) => m && m.body));
         if ((data as any).profile) setProfile((data as any).profile);
       })
       .catch(() => setError("Unable to load messages."))
       .finally(() => setLoading(false));
   }, [matchId]);
 
-  useEffect(() => { // scroll to bottom when messages change
+  useEffect(() => {
     if (!listRef.current) return;
     listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages]);
@@ -55,12 +82,38 @@ export default function ChatPage({ params }: { params: { matchId: string } }) {
     if (!token) { setError("Please log in."); return; }
     setSending(true);
     try {
-      const resp = await apiRequest<{ data: Message }>(`/chat/${matchId}/messages/`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ body }) });
-      const message = (resp as any).data as Message;
+      const message = await apiRequest<Message>(`/chat/${matchId}/messages/`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ body }) });
       setMessages((m) => [...m, message]);
       setInput("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to send message.");
+    } finally { setSending(false); }
+  }
+
+  async function handleDelete(messageId: string) {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return;
+    try {
+      await apiRequest(`/chat/${matchId}/messages/${messageId}/delete/`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      setMessages((m) => m.map((msg) => msg.id === messageId ? { ...msg, is_deleted: true, body: "[This message was deleted]" } : msg));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to delete message.");
+    }
+  }
+
+  async function handleEdit(messageId: string) {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return;
+    const body = editText.trim();
+    if (!body) return;
+    setSending(true);
+    try {
+      const updated = await apiRequest<Message>(`/chat/${matchId}/messages/${messageId}/`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ body }) });
+      setMessages((m) => m.map((msg) => msg.id === messageId ? updated : msg));
+      setEditingId(null);
+      setEditText("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to edit message.");
     } finally { setSending(false); }
   }
 
@@ -75,9 +128,46 @@ export default function ChatPage({ params }: { params: { matchId: string } }) {
       {loading ? <p className="text-stone-500">Loading messages…</p> : (
         messages.length === 0 ? <p className="text-stone-500">No messages yet. Say hello!</p> : (
           messages.map((m) => {
-            const me = sessionStorage.getItem("user_id") && String(sessionStorage.getItem("user_id")) === String(m.sender_id);
-            return <div key={m.id} className={`mb-3 flex ${me ? "justify-end" : "justify-start"}`}>
-              <div className={`${me ? "bg-rose-600 text-white" : "bg-stone-100 text-stone-900"} max-w-[80%] rounded-xl px-4 py-2`}>{m.body}</div>
+            const isOwn = userId && String(userId) === String(m.sender_id);
+            return <div key={m.id} className="mb-4 flex gap-2 items-end group">
+              {isOwn && (
+                <div className="relative">
+                  <button 
+                    className="opacity-0 group-hover:opacity-100 p-1 text-stone-600 hover:text-stone-900 text-lg leading-none"
+                    onClick={() => setMenuOpen(menuOpen === m.id ? null : m.id)}
+                  >
+                    ⋮
+                  </button>
+                  {menuOpen === m.id && !m.is_deleted && (
+                    <div className="absolute bottom-full right-0 mb-2 bg-white border border-stone-300 rounded shadow-lg z-50">
+                      {editingId === m.id ? (
+                        <>
+                          <button className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-stone-100" onClick={() => handleEdit(m.id)} disabled={sending}>Save</button>
+                          <button className="block w-full text-left px-4 py-2 text-sm text-stone-600 hover:bg-stone-100" onClick={() => { setEditingId(null); setEditText(""); setMenuOpen(null); }}>Cancel</button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-stone-100" onClick={() => { setEditingId(m.id); setEditText(m.body); }}>Edit</button>
+                          <button className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-stone-100" onClick={() => { handleDelete(m.id); setMenuOpen(null); }}>Delete</button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className={`flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
+                <div className={`${m.is_deleted ? "italic text-stone-400" : (isOwn ? "bg-rose-600 text-white" : "bg-stone-100 text-stone-900")} max-w-xs rounded-xl px-4 py-2`}>
+                  {editingId === m.id ? (
+                    <textarea className="field w-full" value={editText} onChange={(e) => setEditText(e.target.value)} maxLength={2000} />
+                  ) : (
+                    m.body
+                  )}
+                </div>
+                <div className="mt-1 flex gap-2 text-xs text-stone-500">
+                  <span>{formatTime(m.created_at)}</span>
+                  {m.is_edited && <span>(edited)</span>}
+                </div>
+              </div>
             </div>;
           })
         )
