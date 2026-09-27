@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+html { @apply overflow-x-hidden; }
 body { @apply bg-[#fffaf7] text-stone-900 antialiased; }
 input, select, textarea { @apply outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100; }
 
