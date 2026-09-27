@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
-import { apiRequest } from "../../../lib/api";
+import { apiRequest } from "../../../../lib/api";
 
 export default function ProfileSetupPage() {
   const [message, setMessage] = useState("");
@@ -51,7 +51,7 @@ export default function ProfileSetupPage() {
     }
   }
 
-  return <main className="app-page max-w-2xl"><p className="text-sm font-bold uppercase tracking-[.2em] text-rose-600">Your space</p><h1 className="mt-2 text-4xl font-bold text-rose-950">{existing ? "Edit your profile" : "Create your profile"}</h1><p className="mt-3 text-stone-600">Only your display name, city, bio, and preferences are shown to others.</p>
+  return <main className="max-w-2xl"><p className="text-sm font-bold uppercase tracking-[.2em] text-rose-600">Your space</p><h1 className="mt-2 text-4xl font-bold text-rose-950">{existing ? "Edit your profile" : "Create your profile"}</h1><p className="mt-3 text-stone-600">Only your display name, city, bio, and preferences are shown to others.</p>
     {loading ? <div className="form-card mt-8 h-80 animate-pulse bg-stone-100" /> : <section className="form-card mt-8">{message && <p className="notice-success mb-5">{message}</p>}<form className="space-y-5" onSubmit={submit}>
       <label><span className="label">Display name</span><input aria-label="Display name" className="field" name="display_name" defaultValue={existing?.display_name} placeholder="How people will know you" maxLength={50} required /></label>
       <label>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 
-import { apiRequest } from "../../lib/api";
+import { apiRequest } from "../../../lib/api";
 
 export default function SignupPage() {
   const [error, setError] = useState("");

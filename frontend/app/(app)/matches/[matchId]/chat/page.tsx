@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
-import { apiRequest } from "../../../../lib/api";
+import { apiRequest } from "../../../../../lib/api";
 
 type Message = {
   id: string;
@@ -149,7 +149,7 @@ export default function ChatPage({ params }: { params: Promise<{ matchId: string
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-8">
+    <main>
       <div className="flex items-center gap-4">
         <Link className="text-sm text-stone-600 underline" href="/matches">
           Back
@@ -175,7 +175,9 @@ export default function ChatPage({ params }: { params: Promise<{ matchId: string
                 {isOwn && (
                   <div className="relative">
                     <button
-                      className="p-1 text-lg leading-none text-stone-600 opacity-0 group-hover:opacity-100 hover:text-stone-900"
+                      type="button"
+                      aria-label="Message actions"
+                      className="p-1 text-lg leading-none text-stone-600 opacity-0 group-hover:opacity-100 hover:text-stone-900 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
                       onClick={() => setMenuOpen(menuOpen === m.id ? null : m.id)}
                     >
                       ⋮

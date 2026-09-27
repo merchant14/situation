@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 
-import { apiRequest } from "../../lib/api";
+import { apiRequest } from "../../../lib/api";
 
 type LoginResponse = { success: true; data: { access: string; refresh: string } };
 type CurrentUser = { id: number; email: string; date_of_birth: string; date_joined: string };

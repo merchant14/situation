@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { apiRequest } from "../../lib/api";
+import { apiRequest } from "../../../lib/api";
+import { PageHeader } from "../../components/page-header";
 
 type Profile = {
   display_name: string;
@@ -85,7 +86,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-8">
+      <main className="max-w-2xl">
         <div className="animate-pulse space-y-4">
           <div className="h-10 bg-stone-200 rounded" />
           <div className="h-64 bg-stone-200 rounded" />
@@ -96,9 +97,9 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-8">
-        <h1 className="text-2xl font-bold">Profile</h1>
-        <p className="mt-4 text-stone-600">
+      <main className="max-w-2xl">
+        <PageHeader title="Profile" subtitle="Set up how you appear to other people." />
+        <p className="text-stone-600">
           You haven't created a profile yet.{" "}
           <Link href="/profile/setup" className="text-rose-600 underline font-semibold">
             Create one now
@@ -109,13 +110,16 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-rose-950">Your Profile</h1>
-        <Link href="/profile/setup" className="text-sm text-rose-600 underline font-semibold">
-          Edit
-        </Link>
-      </div>
+    <main className="max-w-2xl">
+      <PageHeader
+        title="Profile"
+        subtitle="This is how you appear to people you discover."
+        actions={
+          <Link href="/profile/setup" className="text-sm font-semibold text-rose-700 underline">
+            Edit
+          </Link>
+        }
+      />
 
       {error && <p className="notice-error mt-4">{error}</p>}
 
