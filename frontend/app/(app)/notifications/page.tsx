@@ -10,8 +10,19 @@ type Match = {
   created_at: string;
   profile: { public_id: string; display_name: string; age: number; city: string; photo_url?: string | null };
 };
+type ApiNotification = {
+  public_id: string;
+  kind: "interest" | "match";
+  title: string;
+  body: string;
+  actor_profile_id: string | null;
+  actor_display_name: string | null;
+  match_id: string | null;
+  is_read: boolean;
+  created_at: string;
+};
 type Activity =
-  | { id: string; type: "match"; match: Match; createdAt: string; unread: false }
+  | { id: string; type: "interest" | "match"; notification: ApiNotification; createdAt: string; unread: boolean }
   | { id: string; type: "message"; match: Match; message: ChatMessage; createdAt: string; unread: boolean };
 
 function formatTimestamp(value: string) {
@@ -53,16 +64,25 @@ export default function NotificationsPage() {
     }
     try {
       const userId = await getCurrentUserId(token);
-      const { results: matches } = await apiRequest<{ results: Match[] }>("/matches/", { headers: { Authorization: `Bearer ${token}` } });
+      const headers = { Authorization: `Bearer ${token}` };
+      const [{ results: matches }, { results: notifications }] = await Promise.all([
+        apiRequest<{ results: Match[] }>("/matches/", { headers }),
+        apiRequest<{ results: ApiNotification[] }>("/notifications/", { headers }),
+      ]);
       const updates = await Promise.all(matches.map(async (match): Promise<Activity[]> => {
         const messages = await getRecentChatMessages(match.public_id, token);
-        const matchActivity: Activity = { id: `match-${match.public_id}`, type: "match", match, createdAt: match.created_at, unread: false };
         const latestIncoming = messages.find((message) => userId && String(message.sender_id) !== userId);
         const messageActivity: Activity[] = latestIncoming ? [{ id: `message-${latestIncoming.id}`, type: "message", match, message: latestIncoming, createdAt: latestIncoming.created_at, unread: !latestIncoming.is_read }] : [];
-        // Include actual connection and latest incoming message activity; the API has no notification feed.
-        return [matchActivity, ...messageActivity];
+        return messageActivity;
       }));
-      setActivities(updates.flat().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      const notificationActivities: Activity[] = notifications.map((notification) => ({
+        id: `notification-${notification.public_id}`,
+        type: notification.kind,
+        notification,
+        createdAt: notification.created_at,
+        unread: !notification.is_read,
+      }));
+      setActivities([...notificationActivities, ...updates.flat()].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch {
       setError("We couldn’t load your notifications.");
     } finally {
@@ -74,19 +94,29 @@ export default function NotificationsPage() {
 
   async function markAllAsRead() {
     const token = sessionStorage.getItem("access_token");
+    const unreadNotifications = activities.filter((item): item is Extract<Activity, { type: "interest" | "match" }> => item.type !== "message" && item.unread);
     const unreadMatchIds = [...new Set(activities.filter((item): item is Extract<Activity, { type: "message" }> => item.type === "message" && item.unread).map((item) => item.match.public_id))];
-    if (!token || unreadMatchIds.length === 0 || marking) return;
+    if (!token || (unreadMatchIds.length === 0 && unreadNotifications.length === 0) || marking) return;
     setMarking(true);
     setError("");
-    const results = await Promise.allSettled(unreadMatchIds.map((matchId) => apiRequest<void>(`/chat/${matchId}/messages/read/`, { method: "POST", headers: { Authorization: `Bearer ${token}` } })));
-    const succeeded = new Set(unreadMatchIds.filter((_, index) => results[index].status === "fulfilled"));
+    const results = await Promise.allSettled([
+      ...unreadNotifications.map((item) => apiRequest<void>(`/notifications/${item.notification.public_id}/read/`, { method: "POST", headers: { Authorization: `Bearer ${token}` } })),
+      ...unreadMatchIds.map((matchId) => apiRequest<void>(`/chat/${matchId}/messages/read/`, { method: "POST", headers: { Authorization: `Bearer ${token}` } })),
+    ]);
+    const succeededNotificationIds = new Set(unreadNotifications.filter((_, index) => results[index].status === "fulfilled").map((item) => item.notification.public_id));
+    const messageResultOffset = unreadNotifications.length;
+    const succeeded = new Set(unreadMatchIds.filter((_, index) => results[messageResultOffset + index].status === "fulfilled"));
     const failed = results.some((result) => result.status === "rejected");
-    setActivities((current) => current.map((item) => item.type === "message" && succeeded.has(item.match.public_id) ? { ...item, unread: false } : item));
+    setActivities((current) => current.map((item) => {
+      if (item.type === "message" && succeeded.has(item.match.public_id)) return { ...item, unread: false };
+      if (item.type !== "message" && succeededNotificationIds.has(item.notification.public_id)) return { ...item, unread: false, notification: { ...item.notification, is_read: true } };
+      return item;
+    }));
     if (failed) setError("Some messages couldn’t be marked as read. Please try again.");
     setMarking(false);
   }
 
-  const unreadCount = activities.filter((item) => item.type === "message" && item.unread).length;
+  const unreadCount = activities.filter((item) => item.unread).length;
 
   return (
     <section>
@@ -110,24 +140,23 @@ export default function NotificationsPage() {
       ) : <div className="mx-auto max-w-[1120px] space-y-4">
         {activities.map((item) => {
           const messageItem = item.type === "message";
-          const title = messageItem ? "New message" : "New match";
-          const description = messageItem
-            ? item.message.is_deleted ? "This message was deleted." : item.message.body
-            : `You matched with ${item.match.profile.display_name}.`;
-          const href = messageItem ? `/matches/${item.match.public_id}/chat` : "/matches";
-          return <article key={item.id} className={`flex flex-col gap-4 rounded-2xl border p-5 shadow-[0_2px_5px_rgba(49,31,24,0.035)] sm:flex-row sm:items-center sm:p-6 ${messageItem && item.unread ? "border-[#ead8d2] bg-[#fffdfc]" : "border-[#eee7e5] bg-white"}`}>
-            {item.match.profile.photo_url ? <img src={item.match.profile.photo_url} alt={`${item.match.profile.display_name} profile`} className="h-12 w-12 shrink-0 rounded-full object-cover"/> : <ActivityIcon type={item.type}/>}
+          const title = messageItem ? "New message" : item.notification.title;
+          const description = messageItem ? item.message.is_deleted ? "This message was deleted." : item.message.body : item.notification.body;
+          const href = messageItem ? `/matches/${item.match.public_id}/chat` : item.type === "match" && item.notification.match_id ? `/matches/${item.notification.match_id}/chat` : null;
+          const displayName = messageItem ? item.match.profile.display_name : item.type === "interest" ? item.notification.actor_display_name : null;
+          return <article key={item.id} className={`flex flex-col gap-4 rounded-2xl border p-5 shadow-[0_2px_5px_rgba(49,31,24,0.035)] sm:flex-row sm:items-center sm:p-6 ${item.unread ? "border-[#ead8d2] bg-[#fffdfc]" : "border-[#eee7e5] bg-white"}`}>
+            {messageItem && item.match.profile.photo_url ? <img src={item.match.profile.photo_url} alt={`${item.match.profile.display_name} profile`} className="h-12 w-12 shrink-0 rounded-full object-cover"/> : <ActivityIcon type={item.type}/>}
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <h2 className={`text-[15px] text-[#241713] ${messageItem && item.unread ? "font-semibold" : "font-medium"}`}>{title}</h2>
-                {messageItem && item.unread && <span className="rounded-full bg-[#f4e8e4] px-2 py-0.5 text-[11px] font-medium text-[#854331]">Unread</span>}
+                <h2 className={`text-[15px] text-[#241713] ${item.unread ? "font-semibold" : "font-medium"}`}>{title}</h2>
+                {item.unread && <span className="rounded-full bg-[#f4e8e4] px-2 py-0.5 text-[11px] font-medium text-[#854331]">Unread</span>}
                 <time dateTime={item.createdAt} className="text-xs text-[#806d67]">{formatTimestamp(item.createdAt)}</time>
               </div>
-              <p className={`mt-1 break-words text-[14px] leading-6 ${messageItem && item.unread ? "text-[#392923]" : "text-[#6e5c56]"}`}>
-                {messageItem && <span className="font-medium text-[#382721]">{item.match.profile.display_name}: </span>}{description}
+              <p className={`mt-1 break-words text-[14px] leading-6 ${item.unread ? "text-[#392923]" : "text-[#6e5c56]"}`}>
+                {messageItem && <span className="font-medium text-[#382721]">{displayName}: </span>}{description}
               </p>
             </div>
-            <Link href={href} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-[#f2efef] px-4 text-sm font-medium text-[#352822] hover:bg-[#e9e4e3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a9513d]">{messageItem ? "View message" : "View match"}</Link>
+            {href && <Link href={href} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-[#f2efef] px-4 text-sm font-medium text-[#352822] hover:bg-[#e9e4e3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a9513d]">{messageItem ? "View message" : "View match"}</Link>}
           </article>;
         })}
       </div>}
