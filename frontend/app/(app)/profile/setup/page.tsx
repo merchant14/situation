@@ -41,7 +41,7 @@ export default function ProfileSetupPage() {
       await apiRequest<ExistingProfile>("/profile/me/", { method: existing ? "PATCH" : "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
       window.dispatchEvent(new Event("profile-updated"));
       setMessage(existing ? "Your profile changes have been saved." : "Your profile has been created. Next, set your connection preferences.");
-      window.setTimeout(() => router.push(existing ? "/profile" : "/preferences"), 700);
+      window.setTimeout(() => router.push(existing ? "/profile" : "/profile/preferences"), 700);
     } catch {
       setError("We couldn’t save your profile. Please check your details and try again.");
     } finally {
@@ -65,6 +65,6 @@ export default function ProfileSetupPage() {
         <button className="btn-primary w-full" type="submit" disabled={saving}>{saving ? "Saving…" : existing ? "Save changes" : "Create profile"}</button>
       </form>
     </section>}
-    <p className="mt-6 text-sm text-stone-600"><Link className="font-semibold text-rose-700 underline" href="/preferences">Set connection preferences</Link> · <Link className="underline" href="/login">Log in</Link></p>
+    <p className="mt-6 text-sm text-stone-600"><Link className="font-semibold text-rose-700 underline" href="/profile/preferences">Set connection preferences</Link> · <Link className="underline" href="/login">Log in</Link></p>
   </main>;
 }

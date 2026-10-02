@@ -33,7 +33,7 @@ export function Sidebar() {
           {primaryNav.map((item) => <NavItem key={item.label} item={item} pathname={pathname} variant="sidebar" />)}
         </div>
         <div className="mt-auto space-y-1 border-t border-[#e9e1df] py-4">
-          <Link href="/preferences" aria-current={pathname.startsWith("/preferences") ? "page" : undefined} className="flex items-center gap-3 rounded-md px-3 py-2 text-[13px] text-[#432d26] hover:bg-[#ebe6e5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a94f3b]"><NavIcon name="settings" />Settings</Link>
+          <Link href="/profile/preferences" aria-current={pathname === "/profile/preferences" ? "page" : undefined} className="flex items-center gap-3 rounded-md px-3 py-2 text-[13px] text-[#432d26] hover:bg-[#ebe6e5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a94f3b]"><NavIcon name="settings" />Settings</Link>
           <Link href="/profile" className="flex items-center gap-3 rounded-md px-3 py-2 text-[13px] text-[#432d26] hover:bg-[#ebe6e5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a94f3b]"><NavIcon name="safety" />Help &amp; Safety</Link>
           <button type="button" onClick={logout} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-[13px] text-[#432d26] hover:bg-[#ebe6e5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a94f3b]"><NavIcon name="logout" />Log out</button>
         </div>
