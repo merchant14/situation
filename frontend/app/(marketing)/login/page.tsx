@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { apiRequest } from "../../../lib/api";
+import { ApiError, apiRequest } from "../../../lib/api";
 
 type LoginResponse = { success: true; data: { access: string; refresh: string } };
 type CurrentUser = { id: number; email: string; date_of_birth: string; date_joined: string };
@@ -11,6 +11,7 @@ type CurrentUser = { id: number; email: string; date_of_birth: string; date_join
 export default function LoginPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -30,11 +31,11 @@ export default function LoginPage() {
       sessionStorage.setItem("refresh_token", response.data.refresh);
       sessionStorage.setItem("user_id", String(currentUser.id));
       router.replace("/discover");
-    } catch {
+    } catch (error) {
       sessionStorage.removeItem("access_token");
       sessionStorage.removeItem("refresh_token");
       sessionStorage.removeItem("user_id");
-      setError("Email or password is incorrect.");
+      setError(error instanceof ApiError ? error.message : "Unable to log in. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -45,7 +46,7 @@ export default function LoginPage() {
     <section className="form-card"><h2 className="text-2xl font-bold">Log in</h2>
       <form className="mt-7 space-y-5" onSubmit={submit}>
         <label><span className="label">Email address</span><input aria-label="Email" className="field" name="email" type="email" autoComplete="email" placeholder="you@example.com" required /></label>
-        <label><span className="label">Password</span><input aria-label="Password" className="field" name="password" type="password" autoComplete="current-password" placeholder="Your password" required /></label>
+        <label><span className="label">Password</span><div className="relative"><input aria-label="Password" className="field pr-20" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="Your password" required /><button className="absolute inset-y-0 right-3 text-sm font-semibold text-rose-700" type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? "Hide" : "Show"}</button></div></label>
         {error && <p role="alert" className="notice-error">{error}</p>}
         <button className="btn-primary w-full" type="submit" disabled={submitting}>{submitting ? "Logging in…" : "Log in"}</button>
       </form>

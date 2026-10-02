@@ -16,7 +16,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ("email", "password", "date_of_birth")
 
     def validate_email(self, value: str) -> str:
-        return value.lower()
+        email = value.lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("This email is already registered.")
+        return email
 
     def validate_date_of_birth(self, value: date) -> date:
         today = date.today()
@@ -51,10 +54,10 @@ class EmailTokenObtainPairSerializer(serializers.Serializer):
         try:
             user = User.objects.get(email__iexact=email, is_active=True)
         except User.DoesNotExist:
-            raise serializers.ValidationError("No active account found with the given credentials.")
+            raise serializers.ValidationError({"email": "No account is registered with this email."})
 
         if not user.check_password(password):
-            raise serializers.ValidationError("No active account found with the given credentials.")
+            raise serializers.ValidationError({"password": "The password is incorrect."})
 
         refresh = RefreshToken.for_user(user)
         return {"refresh": str(refresh), "access": str(refresh.access_token)}

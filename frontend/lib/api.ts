@@ -4,6 +4,22 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8
 
 export class ApiError extends Error { constructor(message: string, public readonly status: number) { super(message); } }
 
+function firstError(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const message = firstError(item);
+      if (message) return message;
+    }
+  } else if (value && typeof value === "object") {
+    for (const item of Object.values(value)) {
+      const message = firstError(item);
+      if (message) return message;
+    }
+  }
+  return undefined;
+}
+
 export async function getCurrentUserId(token: string): Promise<string> {
   const existing = typeof window !== "undefined" ? sessionStorage.getItem("user_id") : null;
   if (existing) return existing;
@@ -35,9 +51,8 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   }
 
   if (!response.ok) {
-    const body = payload as { message?: string; errors?: Record<string, string[] | string> } | null;
-    const first = body?.errors && Object.values(body.errors)[0];
-    throw new ApiError(body?.message ?? (Array.isArray(first) ? first[0] : first) ?? "Something went wrong. Please try again.", response.status);
+    const body = payload as { message?: string; errors?: unknown } | null;
+    throw new ApiError(firstError(body?.errors) ?? body?.message ?? "Something went wrong. Please try again.", response.status);
   }
   return payload as T;
 }

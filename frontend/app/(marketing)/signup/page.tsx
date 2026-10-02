@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 
-import { apiRequest } from "../../../lib/api";
+import { ApiError, apiRequest } from "../../../lib/api";
 
 export default function SignupPage() {
   const [error, setError] = useState("");
   const [complete, setComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,8 +26,8 @@ export default function SignupPage() {
         }),
       });
       setComplete(true);
-    } catch {
-      setError("We couldn’t create your account. Check your details and try again.");
+    } catch (error) {
+      setError(error instanceof ApiError ? error.message : "We couldn't create your account. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -36,7 +37,7 @@ export default function SignupPage() {
       <form className="mt-7 space-y-5" onSubmit={submit}>
         <label><span className="label">Email address</span><input aria-label="Email" className="field" name="email" type="email" placeholder="you@example.com" required /></label>
         <label><span className="label">Date of birth</span><input aria-label="Date of birth" className="field" name="date_of_birth" type="date" required /></label>
-        <label><span className="label">Password</span><input aria-label="Password" className="field" name="password" type="password" placeholder="At least 8 characters" minLength={8} required /></label>
+        <label><span className="label">Password</span><div className="relative"><input aria-label="Password" className="field pr-20" name="password" type={showPassword ? "text" : "password"} placeholder="At least 8 characters" minLength={8} autoComplete="new-password" required /><button className="absolute inset-y-0 right-3 text-sm font-semibold text-rose-700" type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? "Hide" : "Show"}</button></div><span className="mt-1 block text-xs text-stone-500">Use at least 8 characters. Avoid common passwords and passwords based on your email.</span></label>
         {error && <p role="alert" className="notice-error">{error}</p>}
         <button className="btn-primary w-full" type="submit" disabled={submitting}>{submitting ? "Creating account…" : "Create account"}</button>
       </form>}
