@@ -132,7 +132,7 @@ export default function DiscoverPage() {
           <h1 className="font-serif text-[40px] leading-none tracking-[-0.035em] text-[#15100e] sm:text-[48px]">Discover</h1>
           <p className="mt-3 text-[16px] text-[#6e5c56] sm:text-[18px]">People who match your preferences.</p>
         </div>
-        <Link href="/preferences" className="inline-flex min-h-12 items-center justify-center gap-3 rounded-xl border border-[#e9dfdc] bg-[#f5f1f1] px-5 text-sm font-medium text-[#36241e] shadow-sm hover:bg-[#eee8e7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a9513d]">
+        <Link href="/profile/preferences" className="inline-flex min-h-12 items-center justify-center gap-3 rounded-xl border border-[#e9dfdc] bg-[#f5f1f1] px-5 text-sm font-medium text-[#36241e] shadow-sm hover:bg-[#eee8e7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a9513d]">
           <svg className="h-5 w-5 text-[#a9513d]" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h10M18 7h2M4 12h2m4 0h10M4 17h10m4 0h2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><circle cx="16" cy="7" r="2" fill="currentColor"/><circle cx="8" cy="12" r="2" fill="currentColor"/><circle cx="16" cy="17" r="2" fill="currentColor"/></svg>
           Preferences &amp; Intentions
         </Link>
@@ -151,7 +151,7 @@ export default function DiscoverPage() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#f2edeb] text-[#a9513d]"><svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8m0-12.8L5.6 18.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg></div>
           <h2 className="mt-5 font-serif text-2xl text-[#241713]">No more profiles right now.</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6e5c56]">We’ve reached the end of your current recommendations.</p>
-          <Link href="/preferences" className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-[#a9513d] px-5 text-sm font-semibold text-white hover:bg-[#923f30] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a9513d]">Review Preferences</Link>
+          <Link href="/profile/preferences" className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-[#a9513d] px-5 text-sm font-semibold text-white hover:bg-[#923f30] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a9513d]">Review Preferences</Link>
         </div>
       ) : (
         <article className="mx-auto mt-8 max-w-[770px] overflow-hidden rounded-[26px] border border-[#eee7e5] bg-white shadow-[0_2px_5px_rgba(49,31,24,0.06)]">
