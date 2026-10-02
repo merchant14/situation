@@ -62,7 +62,7 @@ function ProfileSkeleton() {
 }
 
 function EditLink({ children = "Edit Profile" }: { children?: ReactNode }) {
-  return <Link href="/profile/setup" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#a9513d] px-5 text-sm font-semibold text-white hover:bg-[#923f30] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a9513d]">{children}</Link>;
+  return <Link href="/profile/edit" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#a9513d] px-5 text-sm font-semibold text-white hover:bg-[#923f30] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a9513d]">{children}</Link>;
 }
 
 export default function ProfilePage() {
@@ -137,7 +137,7 @@ export default function ProfilePage() {
                 <span className="rounded-full bg-[#f2efef] px-3 py-1 text-xs text-[#5f4b44]">{profile.city}</span>
               </div>
               <p className="mt-4 max-w-3xl text-[16px] leading-7 text-[#594741]">{profile.bio || "Add a short introduction so people can understand you better."}</p>
-              {!profile.bio && <Link href="/profile/setup" className="mt-2 inline-block text-sm font-medium text-[#963f2e] underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#a9513d]">Add a bio</Link>}
+              {!profile.bio && <Link href="/profile/edit" className="mt-2 inline-block text-sm font-medium text-[#963f2e] underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#a9513d]">Add a bio</Link>}
             </div>
           </section>
 

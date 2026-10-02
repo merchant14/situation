@@ -2,7 +2,9 @@ import { clearSession, getUserIdClaim } from "./session";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001/api/v1";
 
-export class ApiError extends Error { constructor(message: string, public readonly status: number) { super(message); } }
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number, public readonly errors?: unknown) { super(message); }
+}
 
 function firstError(value: unknown): string | undefined {
   if (typeof value === "string") return value;
@@ -52,7 +54,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   if (!response.ok) {
     const body = payload as { message?: string; errors?: unknown } | null;
-    throw new ApiError(firstError(body?.errors) ?? body?.message ?? "Something went wrong. Please try again.", response.status);
+    throw new ApiError(firstError(body?.errors) ?? body?.message ?? "Something went wrong. Please try again.", response.status, body?.errors);
   }
   return payload as T;
 }
