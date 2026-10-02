@@ -33,6 +33,7 @@ urlpatterns = [
     path("discover/", include("apps.discovery.urls")),
     path("interests/", include("apps.interests.urls")),
     path("matches/", include("apps.matches.urls")),
+    path("notifications/", include("apps.notifications.urls")),
     path("chat/", include("apps.chat.urls")),
     path("", include("apps.moderation.urls")),
     path("", api_root, name="api-root"),
