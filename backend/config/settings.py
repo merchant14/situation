@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.discovery",
     "apps.interests",
     "apps.matches",
+    "apps.notifications",
     "apps.moderation",
     "apps.chat",
 ]
