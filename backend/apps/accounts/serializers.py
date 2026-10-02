@@ -3,7 +3,11 @@ from uuid import uuid4
 
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.utils import get_md5_hash_password
 from drf_spectacular.utils import extend_schema_field
 
 from .models import User
@@ -129,3 +133,20 @@ class AccountDeletionSerializer(serializers.Serializer):
         if not self.context["request"].user.check_password(value):
             raise serializers.ValidationError("The current password is incorrect.")
         return value
+
+
+class ActiveAccountTokenRefreshSerializer(TokenRefreshSerializer):
+    def validate(self, attrs):
+        refresh = self.token_class(attrs["refresh"])
+        user_id = refresh.get(api_settings.USER_ID_CLAIM)
+        try:
+            user = User.objects.get(**{api_settings.USER_ID_FIELD: user_id})
+        except User.DoesNotExist:
+            raise AuthenticationFailed("The account is no longer available.")
+        if not user.is_active:
+            raise AuthenticationFailed("The account is no longer available.")
+        if api_settings.CHECK_REVOKE_TOKEN and refresh.get(
+            api_settings.REVOKE_TOKEN_CLAIM
+        ) != get_md5_hash_password(user.password):
+            raise AuthenticationFailed("The token has been revoked.")
+        return super().validate(attrs)

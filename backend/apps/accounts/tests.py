@@ -274,6 +274,14 @@ class AccountDeletionApiTests(APITestCase):
         self.assertIn("current_password", invalid.data["errors"])
         self.assertTrue(get_user_model().objects.filter(pk=self.user.pk).exists())
 
+    def test_delete_is_not_triggered_by_get_or_post(self):
+        self.client.force_authenticate(self.user)
+        get_response = self.client.get("/api/v1/auth/me/")
+        post_response = self.client.post("/api/v1/auth/me/", {"current_password": self.password}, format="json")
+        self.assertEqual(get_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(post_response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertTrue(get_user_model().objects.filter(pk=self.user.pk).exists())
+
     def test_delete_removes_owned_records_and_keeps_shared_catalog_and_other_users(self):
         from django.db.models import Q
         from apps.chat.models import Message
@@ -347,9 +355,7 @@ class AccountDeletionApiTests(APITestCase):
         self.assertEqual(settings_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         refreshed = self.client.post("/api/v1/auth/refresh/", {"refresh": str(refresh)}, format="json")
-        if refreshed.status_code == status.HTTP_200_OK:
-            self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {refreshed.data['access']}")
-            self.assertEqual(self.client.get("/api/v1/auth/me/").status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(refreshed.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_repeated_delete_with_same_token_is_rejected_safely(self):
         from rest_framework_simplejwt.tokens import RefreshToken

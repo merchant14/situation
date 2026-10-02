@@ -2,13 +2,13 @@ from django.db import transaction
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 
 from .serializers import (CurrentUserSerializer, EmailTokenObtainPairSerializer,
-                          AccountDeletionSerializer, PasswordChangeSerializer, RegisterSerializer,
-                          SettingsSummarySerializer)
+                          AccountDeletionSerializer, ActiveAccountTokenRefreshSerializer,
+                          PasswordChangeSerializer, RegisterSerializer, SettingsSummarySerializer)
 
 class RegisterView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
@@ -35,6 +35,10 @@ class LoginView(TokenObtainPairView):
         return Response({"success": True, "data": response.data}, status=response.status_code)
 
 
+class AccountTokenRefreshView(TokenRefreshView):
+    serializer_class = ActiveAccountTokenRefreshSerializer
+
+
 class CurrentUserView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = CurrentUserSerializer
@@ -49,7 +53,12 @@ class CurrentUserView(generics.RetrieveAPIView):
             400: OpenApiTypes.OBJECT,
             401: OpenApiTypes.OBJECT,
         },
-        description="Permanently delete the authenticated user's account. Requires current-password confirmation.",
+        description=(
+            "Permanently delete the authenticated user's account. Send a JSON request body "
+            '`{"current_password": "your-current-password"}`. The required `current_password` '
+            "field confirms the account owner. Returns 400 for a missing or incorrect password "
+            "and 401 when the request is unauthenticated."
+        ),
     )
     def delete(self, request, *args, **kwargs):
         serializer = AccountDeletionSerializer(data=request.data, context={"request": request})
