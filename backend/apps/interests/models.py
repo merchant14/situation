@@ -2,6 +2,19 @@ from django.conf import settings
 from django.db import models
 
 
+class ProfileInterest(models.Model):
+    name = models.CharField(max_length=80, unique=True)
+    slug = models.SlugField(max_length=90, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("name", "id")
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Interest(models.Model):
     class Decision(models.TextChoices):
         INTERESTED = "interested", "Interested"

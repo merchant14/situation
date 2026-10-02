@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from apps.interests.serializers import ProfileInterestSerializer
 
 from .models import Profile
 
@@ -6,10 +7,11 @@ from .models import Profile
 class ProfileSerializer(serializers.ModelSerializer):
     photo_url = serializers.SerializerMethodField(read_only=True)
     photo = serializers.ImageField(write_only=True, required=False, allow_null=True)
+    interests = ProfileInterestSerializer(many=True, read_only=True)
 
     class Meta:
         model = Profile
-        fields = ("public_id", "display_name", "gender", "city", "bio", "is_active", "created_at", "updated_at", "photo", "photo_url")
+        fields = ("public_id", "display_name", "gender", "city", "bio", "interests", "is_active", "created_at", "updated_at", "photo", "photo_url")
         read_only_fields = ("public_id", "is_active", "created_at", "updated_at", "photo_url")
 
     def get_photo_url(self, obj: Profile):

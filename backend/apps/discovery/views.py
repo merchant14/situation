@@ -22,5 +22,6 @@ class DiscoveryListView(generics.ListAPIView):
             .exclude(user__in=blocking_ids)
             .exclude(user_id__in=acted_on_ids)
             .select_related("user", "user__preferences")
+            .prefetch_related("interests")
             .order_by("-created_at")
         )

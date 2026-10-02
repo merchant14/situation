@@ -12,12 +12,47 @@ from apps.moderation.models import Block
 from apps.notifications.models import Notification
 
 from .models import Interest
-from .serializers import InterestActionSerializer
+from .serializers import (InterestActionSerializer, ProfileInterestSerializer,
+                          ProfileInterestsUpdateSerializer)
+from .models import ProfileInterest
+
+
+class MyProfileInterestsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_profile(self, request):
+        return get_object_or_404(Profile.objects.prefetch_related("interests"), user=request.user)
+
+    @extend_schema(responses={200: ProfileInterestSerializer(many=True)})
+    def get(self, request):
+        profile = self.get_profile(request)
+        return Response({"interests": ProfileInterestSerializer(profile.interests.all(), many=True).data})
+
+    @extend_schema(request=ProfileInterestsUpdateSerializer, responses={200: ProfileInterestSerializer(many=True)})
+    def put(self, request):
+        profile = self.get_profile(request)
+        serializer = ProfileInterestsUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            profile.interests.set(serializer.validated_data["interest_ids"])
+        return Response({"interests": ProfileInterestSerializer(profile.interests.all(), many=True).data})
+
+    patch = put
 
 
 class InterestActionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = InterestActionSerializer
+
+    @extend_schema(responses={200: ProfileInterestSerializer(many=True)})
+    def get(self, request):
+        from rest_framework.pagination import PageNumberPagination
+
+        queryset = ProfileInterest.objects.all()
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        data = ProfileInterestSerializer(page, many=True).data
+        return paginator.get_paginated_response(data)
 
     @extend_schema(request=InterestActionSerializer, responses={200: InterestActionSerializer})
     def post(self, request):
