@@ -1,7 +1,10 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, parsers
 from rest_framework.exceptions import ValidationError
+from django.db.models import Q
 
+from apps.discovery.serializers import DiscoveryProfileSerializer
+from apps.moderation.models import Block
 from .models import Profile
 from .serializers import ProfileSerializer
 
@@ -26,3 +29,23 @@ class MyProfileView(generics.RetrieveUpdateAPIView, generics.CreateAPIView):
 
     def perform_update(self, serializer):
         serializer.save()
+
+
+class PublicProfileView(generics.RetrieveAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = DiscoveryProfileSerializer
+    lookup_field = "public_id"
+
+    def get_queryset(self):
+        blocked = Block.objects.filter(blocker=self.request.user).values("blocked_id")
+        blocking = Block.objects.filter(blocked=self.request.user).values("blocker_id")
+        return (
+            Profile.objects.filter(is_active=True, user__is_active=True, user__preferences__isnull=False)
+            .exclude(user=self.request.user)
+            .exclude(user_id__in=blocked)
+            .exclude(user_id__in=blocking)
+            .select_related("user", "user__preferences")
+        )
+
+    def get_serializer_context(self):
+        return {**super().get_serializer_context(), "request": self.request}
