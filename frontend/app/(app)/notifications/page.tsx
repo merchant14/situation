@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiRequest, getCurrentUserId } from "../../../lib/api";
 import { getRecentChatMessages, type ChatMessage } from "../../../lib/chat";
@@ -48,6 +49,7 @@ function ActivityIcon({ type }: { type: Activity["type"] }) {
 }
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -142,7 +144,13 @@ export default function NotificationsPage() {
           const messageItem = item.type === "message";
           const title = messageItem ? "New message" : item.notification.title;
           const description = messageItem ? item.message.is_deleted ? "This message was deleted." : item.message.body : item.notification.body;
-          const href = messageItem ? `/matches/${item.match.public_id}/chat` : item.type === "match" && item.notification.match_id ? `/matches/${item.notification.match_id}/chat` : null;
+          const href = messageItem
+            ? `/matches/${item.match.public_id}/chat`
+            : item.type === "match" && item.notification.match_id
+              ? `/matches/${item.notification.match_id}/chat`
+              : item.type === "interest" && item.notification.actor_profile_id
+                ? `/profiles/${item.notification.actor_profile_id}`
+                : null;
           const displayName = messageItem ? item.match.profile.display_name : item.type === "interest" ? item.notification.actor_display_name : null;
           return <article key={item.id} className={`flex flex-col gap-4 rounded-2xl border p-5 shadow-[0_2px_5px_rgba(49,31,24,0.035)] sm:flex-row sm:items-center sm:p-6 ${item.unread ? "border-[#ead8d2] bg-[#fffdfc]" : "border-[#eee7e5] bg-white"}`}>
             {messageItem && item.match.profile.photo_url ? <img src={item.match.profile.photo_url} alt={`${item.match.profile.display_name} profile`} className="h-12 w-12 shrink-0 rounded-full object-cover"/> : <ActivityIcon type={item.type}/>}
@@ -156,7 +164,22 @@ export default function NotificationsPage() {
                 {messageItem && <span className="font-medium text-[#382721]">{displayName}: </span>}{description}
               </p>
             </div>
-            {href && <Link href={href} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-[#f2efef] px-4 text-sm font-medium text-[#352822] hover:bg-[#e9e4e3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a9513d]">{messageItem ? "View message" : "View match"}</Link>}
+            {href && <Link href={href} onClick={item.type === "interest" ? async (event) => {
+              event.preventDefault();
+              const token = sessionStorage.getItem("access_token");
+              if (token && item.unread) {
+                try {
+                  await apiRequest<void>(`/notifications/${item.notification.public_id}/read/`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+                  setActivities((current) => current.map((activity) => {
+                    if (activity.id !== item.id || activity.type === "message") return activity;
+                    return { ...activity, unread: false, notification: { ...activity.notification, is_read: true } };
+                  }));
+                } catch {
+                  // Profile access is still useful if marking the notification read fails.
+                }
+              }
+              router.push(href);
+            } : undefined} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-[#f2efef] px-4 text-sm font-medium text-[#352822] hover:bg-[#e9e4e3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a9513d]">{messageItem ? "View message" : item.type === "interest" ? "View profile" : "View match"}</Link>}
           </article>;
         })}
       </div>}
