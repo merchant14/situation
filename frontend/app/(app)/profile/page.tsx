@@ -13,7 +13,10 @@ type Profile = {
   city: string;
   bio?: string;
   photo_url?: string | null;
+  interests: ProfileInterest[];
 };
+
+type ProfileInterest = { id: number; name: string; slug: string };
 
 type Preferences = {
   connection_goal: string;
@@ -154,7 +157,13 @@ export default function ProfilePage() {
               </section>
               <section className="rounded-2xl border border-[#eee7e5] bg-white p-6 shadow-[0_2px_5px_rgba(49,31,24,0.035)] sm:p-8">
                 <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ffe1c5] text-[#8e552c]"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h10l4 4v12H5zM15 4v5h4M8 13h8m-8 3h6" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round"/></svg></span><h2 className="text-[12px] font-medium uppercase tracking-[0.09em] text-[#432d26]">Interests</h2></div>
-                <p className="mt-5 text-sm leading-6 text-[#6e5c56]">Interests aren’t part of the profile information currently available.</p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-sm leading-6 text-[#6e5c56]">{profile.interests?.length ? "Interests that represent you" : "Choose interests that represent you and help others get to know you."}</span>
+                  <Link href="/profile/interests" className="text-sm font-medium text-[#963f2e] underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#a9513d]">Edit interests</Link>
+                </div>
+                {!!profile.interests?.length && <ul className="mt-5 flex flex-wrap gap-2" aria-label="Selected interests">
+                  {profile.interests.map((interest) => <li key={interest.id} className="rounded-full bg-[#f3f0f0] px-3.5 py-2 text-sm font-medium text-[#594741]">{interest.name}</li>)}
+                </ul>}
               </section>
             </div>
 
