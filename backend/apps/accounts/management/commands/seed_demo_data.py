@@ -55,10 +55,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--reset", action="store_true", help="Safely remove and recreate only the known demo accounts.")
+        parser.add_argument("--allow-production", action="store_true", help="Allow seeding when DJANGO_DEBUG is false.")
 
     def handle(self, *args, **options):
-        if not settings.DEBUG:
-            raise CommandError("seed_demo_data is disabled unless DJANGO_DEBUG=true.")
+        if not settings.DEBUG and not options["allow_production"]:
+            raise CommandError("In production, pass --allow-production to seed demo data explicitly.")
 
         User = get_user_model()
         validate_password(DEMO_PASSWORD)

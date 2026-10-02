@@ -8,6 +8,12 @@ docker compose exec backend python manage.py seed_demo_data
 
 The command requires `DJANGO_DEBUG=true`. It validates the shared password against the configured Django password validators and will refuse unexpected accounts that collide with a reserved demo email.
 
+## Render production seed
+
+The backend Docker image supports an explicit one-time production seed on startup. In the Render backend service, set `SEED_DEMO_DATA_ON_STARTUP=true` and deploy. The image runs migrations, seeds the demo data, then starts the web server. After the deploy succeeds, remove the variable or set it to `false` and redeploy. If left enabled, every service restart or deploy will reapply the demo data and reset the demo account passwords. Keep the service at one instance during seeding to avoid simultaneous seed runs.
+
+This uses the shared demo password below, so use it only for a demo/staging deployment or a production instance where these demo accounts are intended to be accessible. A manual production run requires `python manage.py seed_demo_data --allow-production`.
+
 ## Login
 
 All ten accounts use this development-only password:
