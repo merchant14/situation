@@ -1,9 +1,14 @@
+from django.db import transaction
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 
-from .serializers import CurrentUserSerializer, EmailTokenObtainPairSerializer, RegisterSerializer
-
+from .serializers import (CurrentUserSerializer, EmailTokenObtainPairSerializer,
+                          AccountDeletionSerializer, PasswordChangeSerializer, RegisterSerializer,
+                          SettingsSummarySerializer)
 
 class RegisterView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
@@ -36,3 +41,51 @@ class CurrentUserView(generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+    @extend_schema(
+        request=AccountDeletionSerializer,
+        responses={
+            200: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT,
+            401: OpenApiTypes.OBJECT,
+        },
+        description="Permanently delete the authenticated user's account. Requires current-password confirmation.",
+    )
+    def delete(self, request, *args, **kwargs):
+        serializer = AccountDeletionSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        profile = getattr(user, "profile", None)
+        photo_name = profile.photo.name if profile and profile.photo else None
+        photo_storage = profile.photo.storage if photo_name else None
+
+        with transaction.atomic():
+            user.delete()
+            if photo_name:
+                transaction.on_commit(
+                    lambda: photo_storage.delete(photo_name),
+                    robust=True,
+                )
+
+        return Response({"success": True, "data": {"deleted": True}}, status=status.HTTP_200_OK)
+
+
+class SettingsSummaryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(responses=SettingsSummarySerializer)
+    def get(self, request):
+        return Response(SettingsSummarySerializer(request.user).data)
+
+
+class PasswordChangeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(request=PasswordChangeSerializer, responses={204: None})
+    def post(self, request):
+        serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        request.user.set_password(serializer.validated_data["new_password"])
+        request.user.save(update_fields=("password",))
+        return Response(status=status.HTTP_204_NO_CONTENT)

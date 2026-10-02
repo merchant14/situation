@@ -4,6 +4,7 @@ from uuid import uuid4
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
+from drf_spectacular.utils import extend_schema_field
 
 from .models import User
 
@@ -68,3 +69,63 @@ class CurrentUserSerializer(serializers.ModelSerializer):
         model = User
         fields = ("id", "email", "date_of_birth", "date_joined")
         read_only_fields = fields
+
+
+class AccountSettingsSerializer(serializers.Serializer):
+    display_name = serializers.CharField(allow_null=True)
+    email = serializers.EmailField()
+
+
+class SettingsFeaturesSerializer(serializers.Serializer):
+    password_change = serializers.BooleanField()
+    safety_tools = serializers.BooleanField()
+    notification_settings = serializers.BooleanField()
+    privacy_settings = serializers.BooleanField()
+    delete_account = serializers.BooleanField()
+
+
+class SettingsSummarySerializer(serializers.Serializer):
+    account = serializers.SerializerMethodField()
+    features = serializers.SerializerMethodField()
+
+    @extend_schema_field(AccountSettingsSerializer)
+    def get_account(self, user):
+        profile = getattr(user, "profile", None)
+        return AccountSettingsSerializer({
+            "display_name": profile.display_name if profile else None,
+            "email": user.email,
+        }).data
+
+    @extend_schema_field(SettingsFeaturesSerializer)
+    def get_features(self, user):
+        return SettingsFeaturesSerializer({
+            "password_change": True,
+            "safety_tools": True,
+            "notification_settings": False,
+            "privacy_settings": False,
+            "delete_account": True,
+        }).data
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    new_password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+    def validate_current_password(self, value):
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("The current password is incorrect.")
+        return value
+
+    def validate_new_password(self, value):
+        validate_password(value, user=self.context["request"].user)
+        return value
+
+
+class AccountDeletionSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+    def validate_current_password(self, value):
+        if not self.context["request"].user.check_password(value):
+            raise serializers.ValidationError("The current password is incorrect.")
+        return value

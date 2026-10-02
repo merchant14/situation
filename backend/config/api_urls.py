@@ -4,6 +4,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
+from apps.accounts.views import SettingsSummaryView
 
 
 @extend_schema(responses={200: OpenApiTypes.OBJECT})
@@ -27,6 +28,7 @@ def health_check(request):
 
 
 urlpatterns = [
+    path("settings/", SettingsSummaryView.as_view(), name="settings-summary"),
     path("auth/", include("apps.accounts.urls")),
     path("profile/", include("apps.profiles.urls")),
     path("preferences/", include("apps.preferences.urls")),

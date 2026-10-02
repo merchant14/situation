@@ -203,3 +203,237 @@ class DemoSeedCommandTests(APITestCase):
         self.assertFalse(first_action.data["data"]["matched"])
         self.assertTrue(second_action.data["data"]["matched"])
         self.assertEqual(matches.data["count"], 1)
+
+
+class SettingsApiTests(APITestCase):
+    password = "CorrectHorseBatteryStaple42!"
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="settings-user", email="settings@example.com", password=self.password,
+            date_of_birth="1995-01-01",
+        )
+        self.other = User.objects.create_user(
+            username="other-settings-user", email="other-settings@example.com", password=self.password,
+            date_of_birth="1994-01-01",
+        )
+
+    def test_authenticated_settings_summary_is_minimal_and_reports_real_capabilities(self):
+        from apps.profiles.models import Profile
+
+        Profile.objects.create(user=self.user, display_name="Avery", gender="woman", city="Pune")
+        self.client.force_authenticate(self.user)
+
+        response = self.client.get("/api/v1/settings/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["account"], {"display_name": "Avery", "email": self.user.email})
+        self.assertEqual(response.data["features"], {
+            "password_change": True,
+            "safety_tools": True,
+            "notification_settings": False,
+            "privacy_settings": False,
+            "delete_account": True,
+        })
+        rendered = str(response.data).lower()
+        self.assertNotIn(self.user.password, rendered)
+        self.assertNotIn("token", rendered)
+        self.assertNotIn("id", response.data["account"])
+
+    def test_settings_summary_requires_authentication(self):
+        response = self.client.get("/api/v1/settings/")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class AccountDeletionApiTests(APITestCase):
+    password = "CorrectHorseBatteryStaple42!"
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="delete-me", email="delete-me@example.com", password=self.password,
+            date_of_birth="1995-01-01",
+        )
+        self.other = User.objects.create_user(
+            username="keep-me", email="keep-me@example.com", password=self.password,
+            date_of_birth="1994-01-01",
+        )
+        from apps.profiles.models import Profile
+        self.profile = Profile.objects.create(user=self.user, display_name="Delete Me", gender="woman", city="Pune")
+        self.other_profile = Profile.objects.create(user=self.other, display_name="Keep Me", gender="man", city="Mumbai")
+
+    def test_delete_requires_authentication_and_current_password(self):
+        anonymous = self.client.delete("/api/v1/auth/me/", {"current_password": self.password}, format="json")
+        self.assertEqual(anonymous.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertTrue(get_user_model().objects.filter(pk=self.user.pk).exists())
+
+        self.client.force_authenticate(self.user)
+        invalid = self.client.delete("/api/v1/auth/me/", {"current_password": "wrong"}, format="json")
+        self.assertEqual(invalid.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("current_password", invalid.data["errors"])
+        self.assertTrue(get_user_model().objects.filter(pk=self.user.pk).exists())
+
+    def test_delete_removes_owned_records_and_keeps_shared_catalog_and_other_users(self):
+        from django.db.models import Q
+        from apps.chat.models import Message
+        from apps.interests.models import Interest, ProfileInterest
+        from apps.matches.models import Match
+        from apps.moderation.models import Block, Report
+        from apps.notifications.models import Notification
+        from apps.preferences.models import Preference
+        from apps.profiles.models import Profile
+
+        Preference.objects.create(
+            user=self.user, connection_goal="situationship", connection_style="emotional",
+            exclusivity="not_sure", meeting_frequency="flexible",
+        )
+        Preference.objects.create(
+            user=self.other, connection_goal="situationship", connection_style="emotional",
+            exclusivity="not_sure", meeting_frequency="flexible",
+        )
+        shared_interest = ProfileInterest.objects.get(slug="hiking")
+        self.profile.interests.add(shared_interest)
+        self.other_profile.interests.add(shared_interest)
+        Interest.objects.create(from_user=self.user, to_user=self.other, decision="interested")
+        Interest.objects.create(from_user=self.other, to_user=self.user, decision="pass")
+        match = Match.objects.create(user_one=self.user, user_two=self.other)
+        Message.objects.create(match=match, sender=self.user, body="A message")
+        Notification.objects.create(
+            recipient=self.user, actor=self.other, kind="match", match=match,
+            title="A match", body="A match notification",
+        )
+        actor_notification = Notification.objects.create(
+            recipient=self.other, actor=self.user, kind="interest",
+            title="An interest", body="An interest notification",
+        )
+        Block.objects.create(blocker=self.user, blocked=self.other)
+        Block.objects.create(blocker=self.other, blocked=self.user)
+        Report.objects.create(reporter=self.user, reported=self.other, category="safety")
+        Report.objects.create(reporter=self.other, reported=self.user, category="spam")
+        self.client.force_authenticate(self.user)
+
+        response = self.client.delete("/api/v1/auth/me/", {"current_password": self.password}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"success": True, "data": {"deleted": True}})
+        self.assertFalse(get_user_model().objects.filter(pk=self.user.pk).exists())
+        self.assertFalse(Profile.objects.filter(user_id=self.user.pk).exists())
+        self.assertFalse(Preference.objects.filter(user_id=self.user.pk).exists())
+        self.assertFalse(Interest.objects.filter(Q(from_user_id=self.user.pk) | Q(to_user_id=self.user.pk)).exists())
+        self.assertFalse(Match.objects.filter(Q(user_one_id=self.user.pk) | Q(user_two_id=self.user.pk)).exists())
+        self.assertFalse(Message.objects.filter(sender_id=self.user.pk).exists())
+        self.assertFalse(Notification.objects.filter(recipient_id=self.user.pk).exists())
+        actor_notification.refresh_from_db()
+        self.assertIsNone(actor_notification.actor_id)
+        self.assertFalse(Block.objects.filter(Q(blocker_id=self.user.pk) | Q(blocked_id=self.user.pk)).exists())
+        self.assertFalse(Report.objects.filter(Q(reporter_id=self.user.pk) | Q(reported_id=self.user.pk)).exists())
+        self.assertTrue(ProfileInterest.objects.filter(pk=shared_interest.pk).exists())
+        self.assertTrue(self.other_profile.interests.filter(pk=shared_interest.pk).exists())
+        self.assertTrue(get_user_model().objects.filter(pk=self.other.pk).exists())
+
+    def test_deleted_account_access_and_refresh_tokens_cannot_access_protected_endpoints(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        refresh = RefreshToken.for_user(self.user)
+        old_access = str(refresh.access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {old_access}")
+        deleted = self.client.delete("/api/v1/auth/me/", {"current_password": self.password}, format="json")
+        self.assertEqual(deleted.status_code, status.HTTP_200_OK)
+
+        me_response = self.client.get("/api/v1/auth/me/")
+        settings_response = self.client.get("/api/v1/settings/")
+        self.assertEqual(me_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(settings_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        refreshed = self.client.post("/api/v1/auth/refresh/", {"refresh": str(refresh)}, format="json")
+        if refreshed.status_code == status.HTTP_200_OK:
+            self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {refreshed.data['access']}")
+            self.assertEqual(self.client.get("/api/v1/auth/me/").status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_repeated_delete_with_same_token_is_rejected_safely(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        access = str(RefreshToken.for_user(self.user).access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        first = self.client.delete("/api/v1/auth/me/", {"current_password": self.password}, format="json")
+        second = self.client.delete("/api/v1/auth/me/", {"current_password": self.password}, format="json")
+
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_database_deletion_rolls_back_if_cascade_fails(self):
+        from django.db.models.signals import post_delete
+
+        def fail_after_delete(sender, instance, **kwargs):
+            raise RuntimeError("simulated cascade failure")
+
+        post_delete.connect(fail_after_delete, sender=get_user_model(), weak=False)
+        self.client.force_authenticate(self.user)
+        try:
+            with self.assertRaises(RuntimeError):
+                self.client.delete("/api/v1/auth/me/", {"current_password": self.password}, format="json")
+        finally:
+            post_delete.disconnect(fail_after_delete, sender=get_user_model())
+
+        self.assertTrue(get_user_model().objects.filter(pk=self.user.pk).exists())
+
+class PasswordChangeApiTests(APITestCase):
+    password = "CorrectHorseBatteryStaple42!"
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="password-user", email="password@example.com", password=self.password,
+            date_of_birth="1995-01-01",
+        )
+        self.other = User.objects.create_user(
+            username="other-password-user", email="other-password@example.com", password=self.password,
+            date_of_birth="1994-01-01",
+        )
+
+    def test_password_change_validates_current_and_new_password(self):
+        self.client.force_authenticate(self.user)
+
+        wrong_current = self.client.post("/api/v1/auth/change-password/", {
+            "current_password": "not-the-current-password", "new_password": "AValidNewPassword!482",
+        }, format="json")
+        weak_new = self.client.post("/api/v1/auth/change-password/", {
+            "current_password": self.password, "new_password": "123",
+        }, format="json")
+
+        self.assertEqual(wrong_current.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("current_password", wrong_current.data["errors"])
+        self.assertEqual(weak_new.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("new_password", weak_new.data["errors"])
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.password))
+
+    def test_password_change_updates_only_authenticated_user_and_revokes_old_jwt(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        old_access = str(RefreshToken.for_user(self.user).access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {old_access}")
+        response = self.client.post("/api/v1/auth/change-password/", {
+            "current_password": self.password, "new_password": "AValidNewPassword!482",
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.user.refresh_from_db()
+        self.other.refresh_from_db()
+        self.assertTrue(self.user.check_password("AValidNewPassword!482"))
+        self.assertTrue(self.other.check_password(self.password))
+        rejected_old_token = self.client.get("/api/v1/auth/me/")
+        self.assertEqual(rejected_old_token.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        login = self.client.post("/api/v1/auth/login/", {
+            "email": self.user.email, "password": "AValidNewPassword!482",
+        }, format="json")
+        self.assertEqual(login.status_code, status.HTTP_200_OK)
+        self.assertIn("access", login.data["data"])
+
+    def test_password_change_requires_authentication(self):
+        response = self.client.post("/api/v1/auth/change-password/", {
+            "current_password": self.password, "new_password": "AValidNewPassword!482",
+        }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
