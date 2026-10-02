@@ -74,6 +74,13 @@ export function NavIcon({ name }: { name: NavIconName }) {
           />
         </svg>
       );
+    case "safety":
+      return (
+        <svg className={iconClass} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3.5 19 6v5.2c0 4.2-2.8 7.6-7 9.3-4.2-1.7-7-5.1-7-9.3V6l7-2.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+          <path d="m9 12 2 2 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
     case "logout":
       return (
         <svg className={iconClass} viewBox="0 0 24 24" fill="none" aria-hidden="true">

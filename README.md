@@ -40,6 +40,10 @@ python manage.py test
 
 With Docker running, check PostgreSQL connectivity and migrations through `docker compose up --build`; the backend will only start after PostgreSQL is healthy and executes `python manage.py migrate` first.
 
+## Development demo accounts
+
+With Docker running and `DJANGO_DEBUG=true`, create the deterministic local accounts and relationships with `docker compose exec backend python manage.py seed_demo_data`. Rebuild only those reserved demo accounts with `docker compose exec backend python manage.py seed_demo_data --reset`. Credentials, scenarios, reset safeguards, and current API limitations are documented in [docs/demo-data.md](docs/demo-data.md).
+
 ## API
 
 `GET /api/v1/health/` confirms API availability. The initial account endpoints are `POST /api/v1/auth/register/`, `POST /api/v1/auth/login/`, `POST /api/v1/auth/refresh/`, and authenticated `GET /api/v1/auth/me/`. Registration accepts an email, password, and date of birth; users under 18 are rejected.

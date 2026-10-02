@@ -1,6 +1,8 @@
 from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command, CommandError
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -69,9 +71,9 @@ class AuthenticationApiTests(APITestCase):
         created = self.client.post(
             "/api/v1/profile/me/",
             {"display_name": "Avery", "gender": "non_binary", "city": "Pune", "bio": "Looking for clear communication."},
-            format="json",
+            format="multipart",
         )
-        edited = self.client.patch("/api/v1/profile/me/", {"city": "Mumbai"}, format="json")
+        edited = self.client.patch("/api/v1/profile/me/", {"city": "Mumbai"}, format="multipart")
 
         self.assertEqual(created.status_code, status.HTTP_201_CREATED)
         self.assertEqual(edited.status_code, status.HTTP_200_OK)
@@ -119,6 +121,70 @@ class AuthenticationApiTests(APITestCase):
         self.assertEqual(profile["age"], 31)
         self.assertNotIn("email", profile)
         self.assertNotIn("date_of_birth", profile)
+
+    def test_discovery_excludes_users_already_passed(self):
+        user_model = get_user_model()
+        requester = user_model.objects.create_user(username="passer", email="passer@example.com", password="CorrectHorseBatteryStaple42!", date_of_birth="2000-01-01")
+        candidate = user_model.objects.create_user(username="passed", email="passed@example.com", password="CorrectHorseBatteryStaple42!", date_of_birth="1995-01-01")
+        from apps.preferences.models import Preference
+        from apps.profiles.models import Profile
+        from apps.interests.models import Interest
+        Profile.objects.create(user=requester, display_name="Passer", gender="woman", city="Pune")
+        Profile.objects.create(user=candidate, display_name="Passed", gender="man", city="Mumbai")
+        for user in (requester, candidate):
+            Preference.objects.create(user=user, connection_goal="situationship", connection_style="emotional", exclusivity="no", meeting_frequency="flexible")
+        Interest.objects.create(from_user=requester, to_user=candidate, decision=Interest.Decision.PASS)
+        self.client.force_authenticate(requester)
+
+        response = self.client.get("/api/v1/discover/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 0)
+
+
+class DemoSeedCommandTests(APITestCase):
+    @override_settings(DEBUG=True)
+    def test_seed_is_idempotent_and_reset_preserves_unrelated_users(self):
+        from apps.chat.models import Message
+        from apps.interests.models import Interest
+        from apps.matches.models import Match
+        from apps.moderation.models import Block, Report
+
+        call_command("seed_demo_data", verbosity=0)
+        call_command("seed_demo_data", verbosity=0)
+        self.assertEqual(get_user_model().objects.filter(email__startswith="demo.").count(), 10)
+        self.assertEqual(Interest.objects.count(), 9)
+        self.assertEqual(Match.objects.count(), 3)
+        self.assertEqual(Message.objects.count(), 5)
+        self.assertEqual(Block.objects.count(), 1)
+        self.assertEqual(Report.objects.count(), 1)
+        self.assertTrue(get_user_model().objects.get(email="demo.alex@example.com").check_password("DemoPass123!"))
+
+        unrelated = get_user_model().objects.create_user(username="ordinary", email="ordinary@example.com", password="CorrectHorseBatteryStaple42!", date_of_birth="2000-01-01")
+        call_command("seed_demo_data", "--reset", verbosity=0)
+        self.assertTrue(get_user_model().objects.filter(pk=unrelated.pk).exists())
+        self.assertEqual(get_user_model().objects.filter(email__startswith="demo.").count(), 10)
+        self.assertEqual(Match.objects.count(), 3)
+
+    @override_settings(DEBUG=False)
+    def test_command_refuses_to_run_outside_debug(self):
+        with self.assertRaises(CommandError):
+            call_command("seed_demo_data", verbosity=0)
+        self.assertFalse(get_user_model().objects.filter(email="demo.alex@example.com").exists())
+
+    @override_settings(DEBUG=True)
+    def test_reset_refuses_external_relationships_before_deleting_demo_data(self):
+        call_command("seed_demo_data", verbosity=0)
+        User = get_user_model()
+        outside = User.objects.create_user(username="outside", email="outside@example.com", password="CorrectHorseBatteryStaple42!", date_of_birth="2000-01-01")
+        from apps.interests.models import Interest
+        demo = User.objects.get(email="demo.alex@example.com")
+        Interest.objects.create(from_user=outside, to_user=demo, decision="pass")
+
+        with self.assertRaises(CommandError):
+            call_command("seed_demo_data", "--reset", verbosity=0)
+        self.assertTrue(User.objects.filter(pk=demo.pk).exists())
+        self.assertTrue(User.objects.filter(pk=outside.pk).exists())
 
     def test_mutual_interest_creates_one_match_and_can_be_unmatched(self):
         user_model = get_user_model()

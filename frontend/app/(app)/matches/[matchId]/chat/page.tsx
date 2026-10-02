@@ -3,18 +3,12 @@
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import { apiRequest } from "../../../../../lib/api";
+import { getRecentChatMessages, type ChatMessage } from "../../../../../lib/chat";
 
-type Message = {
-  id: string;
-  sender_id: number;
-  body: string;
-  created_at: string;
-  edited_at?: string;
-  is_edited: boolean;
-  is_deleted: boolean;
-};
+type Message = ChatMessage;
 
-type MatchProfile = { display_name: string; photo_url?: string };
+type MatchProfile = { display_name: string; photo_url?: string | null };
+type MatchResponse = { results: { public_id: string; profile: MatchProfile }[] };
 
 function formatTime(isoString: string) {
   const date = new Date(isoString);
@@ -54,20 +48,17 @@ export default function ChatPage({ params }: { params: Promise<{ matchId: string
       return;
     }
 
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001/api/v1"}/chat/${matchId}/messages/read/`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    }).catch(() => {});
+    void apiRequest<void>(`/chat/${matchId}/messages/read/`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => undefined);
 
-    apiRequest<{ results: Message[]; profile: MatchProfile }>(`/chat/${matchId}/messages/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((data) => {
-        const msgs = (data as any).results || (Array.isArray(data) ? data : []);
-        setMessages(msgs.filter((m: any) => m && m.body));
-        if ((data as any).profile) setProfile((data as any).profile);
+    Promise.all([
+      getRecentChatMessages(matchId, token),
+      apiRequest<MatchResponse>("/matches/", { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+    ])
+      .then(([messages, matches]) => {
+        setMessages(messages.filter((message) => Boolean(message?.body)));
+        setProfile(matches?.results.find((match) => match.public_id === matchId)?.profile ?? null);
       })
-      .catch(() => setError("Unable to load messages."))
+      .catch(() => setError("We couldn’t load this conversation. Please try again."))
       .finally(() => setLoading(false));
   }, [matchId]);
 
@@ -98,8 +89,8 @@ export default function ChatPage({ params }: { params: Promise<{ matchId: string
       });
       setMessages((m) => [...m, message]);
       setInput("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to send message.");
+    } catch {
+      setError("We couldn’t send your message. Please try again.");
     } finally {
       setSending(false);
     }
@@ -120,8 +111,8 @@ export default function ChatPage({ params }: { params: Promise<{ matchId: string
             : msg
         )
       );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to delete message.");
+    } catch {
+      setError("We couldn’t delete that message. Please try again.");
     }
   }
 
@@ -141,8 +132,8 @@ export default function ChatPage({ params }: { params: Promise<{ matchId: string
       setEditingId(null);
       setEditText("");
       setMenuOpen(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to edit message.");
+    } catch {
+      setError("We couldn’t save your edit. Please try again.");
     } finally {
       setSending(false);
     }

@@ -8,10 +8,12 @@ import { apiRequest } from "../../../lib/api";
 export default function SignupPage() {
   const [error, setError] = useState("");
   const [complete, setComplete] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setSubmitting(true);
     const form = new FormData(event.currentTarget);
     try {
       await apiRequest("/auth/register/", {
@@ -23,8 +25,10 @@ export default function SignupPage() {
         }),
       });
       setComplete(true);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to create your account.");
+    } catch {
+      setError("We couldn’t create your account. Check your details and try again.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -33,8 +37,8 @@ export default function SignupPage() {
         <label><span className="label">Email address</span><input aria-label="Email" className="field" name="email" type="email" placeholder="you@example.com" required /></label>
         <label><span className="label">Date of birth</span><input aria-label="Date of birth" className="field" name="date_of_birth" type="date" required /></label>
         <label><span className="label">Password</span><input aria-label="Password" className="field" name="password" type="password" placeholder="At least 8 characters" minLength={8} required /></label>
-        {error && <p className="notice-error">{error}</p>}
-        <button className="btn-primary w-full" type="submit">Create account</button>
+        {error && <p role="alert" className="notice-error">{error}</p>}
+        <button className="btn-primary w-full" type="submit" disabled={submitting}>{submitting ? "Creating account…" : "Create account"}</button>
       </form>}
     <p className="mt-6 text-sm text-stone-600">Already have an account? <Link className="underline" href="/login">Log in</Link>.</p>
   </section></main>;
