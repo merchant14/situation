@@ -12,6 +12,7 @@ export type NavIconName =
   | "notifications"
   | "profile"
   | "settings"
+  | "safety"
   | "logout";
 
 export const primaryNav: NavItemConfig[] = [
@@ -28,10 +29,10 @@ export const primaryNav: NavItemConfig[] = [
     isActive: (pathname) => pathname === "/matches",
   },
   {
-    href: "/matches",
+    href: "/messages",
     label: "Messages",
     icon: "messages",
-    isActive: (pathname) => /\/matches\/[^/]+\/chat(?:\/|$)/.test(pathname),
+    isActive: (pathname) => pathname === "/messages" || pathname.startsWith("/messages/") || /\/matches\/[^/]+\/chat(?:\/|$)/.test(pathname),
   },
   {
     href: "/notifications",
