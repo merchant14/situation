@@ -11,10 +11,11 @@ export default function Navigation() {
     <header className="sticky top-0 z-20 border-b border-rose-100 bg-[#fffaf7]/90 backdrop-blur">
       <nav aria-label="Marketing" className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
         <Link
-          className="rounded-lg text-xl font-bold tracking-tight text-rose-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
+          className="flex items-center gap-2 rounded-lg text-xl font-bold tracking-tight text-rose-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
           href="/"
+          aria-label="Situationship home"
         >
-          situationship<span className="text-rose-500">.</span>
+          <img src="/sitationship-logo.svg" alt="Situationship" className="h-9 w-auto" />
         </Link>
         <div className="flex items-center gap-2">
           {!isAuthPage || path === "/signup" ? (
