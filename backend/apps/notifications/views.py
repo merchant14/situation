@@ -15,6 +15,22 @@ class NotificationListView(generics.ListAPIView):
         return Notification.objects.filter(recipient=self.request.user).select_related("actor__profile", "match")
 
 
+class UnreadNotificationCountView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+        return Response({"count": count}, status=status.HTTP_200_OK)
+
+
+class MarkAllNotificationsReadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class MarkNotificationReadView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
