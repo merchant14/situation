@@ -49,8 +49,8 @@ export const primaryNav: NavItemConfig[] = [
 ];
 
 export const settingsNav: NavItemConfig = {
-  href: "/profile/preferences",
+  href: "/settings",
   label: "Settings",
   icon: "settings",
-  isActive: (pathname) => pathname === "/profile/preferences",
+  isActive: (pathname) => pathname === "/settings",
 };
