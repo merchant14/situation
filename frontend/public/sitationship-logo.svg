@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 150" fill="none">
+  <g transform="translate(8 8)" stroke="#a94f3b" stroke-width="10" stroke-linecap="round">
+    <path d="M61 10a49 49 0 0 0-23 87"/>
+    <path d="M39 98a49 49 0 0 0 82-34"/>
+    <path d="M91 126a49 49 0 0 0 23-87"/>
+    <path d="M113 38a49 49 0 0 0-82 34"/>
+  </g>
+  <text x="156" y="101" fill="#a94f3b" font-family="Georgia, 'Times New Roman', serif" font-size="67" letter-spacing="1">Situationship</text>
+</svg>
