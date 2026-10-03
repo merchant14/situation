@@ -5,6 +5,7 @@ from apps.interests.models import Interest
 from apps.matches.models import Match
 from apps.moderation.models import Block
 from apps.profiles.models import Profile
+from apps.preferences.models import Preference
 from .models import Notification
 
 
@@ -15,6 +16,10 @@ class InterestNotificationTests(APITestCase):
         self.blair = User.objects.create_user(username="blair", email="blair@example.com", password="CorrectHorseBatteryStaple42!", date_of_birth="1996-01-01")
         self.alex_profile = Profile.objects.create(user=self.alex, display_name="Alex Morgan", gender="woman", city="Pune")
         self.blair_profile = Profile.objects.create(user=self.blair, display_name="Blair Shah", gender="man", city="Mumbai")
+        self.charlie = User.objects.create_user(username="charlie", email="charlie@example.com", password="CorrectHorseBatteryStaple42!", date_of_birth="1994-01-01")
+        self.charlie_profile = Profile.objects.create(user=self.charlie, display_name="Charlie Rao", gender="non_binary", city="Nashik")
+        for user in (self.alex, self.blair, self.charlie):
+            Preference.objects.create(user=user, connection_goal="situationship", connection_style="emotional", exclusivity="no", meeting_frequency="flexible")
 
     def act(self, user, target, decision="interested"):
         self.client.force_authenticate(user)
@@ -42,6 +47,45 @@ class InterestNotificationTests(APITestCase):
         self.assertEqual(marked.status_code, 200)
         notification.refresh_from_db()
         self.assertTrue(notification.is_read)
+
+    def test_public_profile_is_retrievable_by_notification_profile_id_without_private_fields(self):
+        self.act(self.alex, self.blair_profile)
+        self.client.force_authenticate(self.blair)
+        notification = self.client.get("/api/v1/notifications/").data["results"][0]
+        self.assertEqual(notification["actor_profile_id"], str(self.alex_profile.public_id))
+        profile = self.client.get(f"/api/v1/profile/{notification['actor_profile_id']}/")
+        self.assertEqual(profile.status_code, 200)
+        self.assertEqual(profile.data["display_name"], "Alex Morgan")
+        self.assertEqual(profile.data["public_id"], notification["actor_profile_id"])
+        self.assertNotIn("email", profile.data)
+        self.assertNotIn("date_of_birth", profile.data)
+
+    def test_database_unread_count_individual_read_mark_all_and_ownership(self):
+        self.act(self.alex, self.blair_profile)
+        self.act(self.charlie, self.blair_profile)
+        self.client.force_authenticate(self.blair)
+        self.assertEqual(self.client.get("/api/v1/notifications/unread-count/").data["count"], 2)
+        feed = self.client.get("/api/v1/notifications/")
+        self.assertEqual(feed.data["count"], 2)
+        self.client.force_authenticate(self.alex)
+        self.assertEqual(self.client.get("/api/v1/notifications/").data["count"], 0)
+        self.assertEqual(self.client.post(f"/api/v1/notifications/{feed.data['results'][0]['public_id']}/read/").status_code, 404)
+
+        self.client.force_authenticate(self.blair)
+        first_id = feed.data["results"][0]["public_id"]
+        self.assertEqual(self.client.post(f"/api/v1/notifications/{first_id}/read/").status_code, 200)
+        self.assertEqual(self.client.post(f"/api/v1/notifications/{first_id}/read/").status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/notifications/unread-count/").data["count"], 1)
+
+        own_notification = Notification.objects.create(
+            recipient=self.alex, actor=self.blair, kind=Notification.Kind.INTEREST,
+            title="Someone is interested in you", body="Blair Shah is interested in you.",
+        )
+        self.assertEqual(self.client.post("/api/v1/notifications/read-all/").status_code, 204)
+        self.assertEqual(self.client.get("/api/v1/notifications/unread-count/").data["count"], 0)
+        self.assertEqual(self.client.post("/api/v1/notifications/read-all/").status_code, 204)
+        own_notification.refresh_from_db()
+        self.assertFalse(own_notification.is_read)
 
     def test_reciprocal_interest_creates_one_match_and_two_match_notifications(self):
         self.act(self.alex, self.blair_profile)
