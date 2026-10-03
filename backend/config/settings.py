@@ -6,7 +6,7 @@ from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
+DEBUG = True#os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
 
 if DEBUG:
     SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "unsafe-development-key")
@@ -105,6 +105,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+MAX_PROFILE_INTERESTS = int(os.environ.get("MAX_PROFILE_INTERESTS", "10"))
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"

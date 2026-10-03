@@ -50,6 +50,8 @@ With Docker running and `DJANGO_DEBUG=true`, create the deterministic local acco
 
 Authenticated profile setup uses `POST`, `GET`, and `PATCH /api/v1/profile/me/`; the same methods are available at `/api/v1/preferences/me/` for the four connection questions. `GET /api/v1/discover/` returns paginated active profiles with preferences, excluding the requester and private account data. Replace the development signing key before any deployment.
 
+Profile interests are separate from connection `Interested`/`Pass` actions. Authenticated `GET /api/v1/interests/` lists the controlled catalog; `GET`, `PUT`, and `PATCH /api/v1/profile/interests/` read or replace the current user's selection using `{"interest_ids": [1, 2]}`. Send an empty list to clear selections. The default limit is 10 and can be changed with `MAX_PROFILE_INTERESTS`. Profile and discovery responses include selected interests.
+
 OpenAPI JSON is available at `/api/schema/`; Swagger UI is available at `/api/docs/`. Use the Swagger **Authorize** control with `Bearer <access token>` for authenticated endpoint exploration.
 
 ## Deployment notes
