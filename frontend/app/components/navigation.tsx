@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 export default function Navigation() {
   const path = usePathname();
   const isAuthPage = path === "/login" || path === "/signup";
+  const isLegalPage = path === "/terms" || path === "/privacy";
 
   return (
     <header className="sticky top-0 z-20 border-b border-rose-100 bg-[#fffaf7]/90 backdrop-blur">
@@ -30,7 +31,11 @@ export default function Navigation() {
           ) : null}
           {path !== "/signup" ? (
             <Link
-              className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700"
+              className={`rounded-full px-4 py-2 text-sm font-semibold text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                isLegalPage
+                  ? "bg-[#a9513d] hover:bg-[#913f30] focus-visible:outline-[#873e30]"
+                  : "bg-rose-600 hover:bg-rose-700 focus-visible:outline-rose-700"
+              }`}
               href="/signup"
             >
               Sign up
