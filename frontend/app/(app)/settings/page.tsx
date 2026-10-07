@@ -176,8 +176,11 @@ export default function SettingsPage() {
 
       {summary.features.safety_tools && <section className={cardClass} aria-labelledby="safety-heading">
         <h2 id="safety-heading" className="font-serif text-xl text-[#241713]">Safety</h2>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6e5c56]">Block or report a profile from Discover. These controls are available on each profile; there isn’t a separate blocked-users list.</p>
-        <Link href="/discover" className={`${linkClass} mt-4 inline-block`}>Go to Discover</Link>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6e5c56]">Use the controls on a profile in Discover to block or report someone. A separate blocked-users list isn’t available.</p>
+        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-3">
+          <Link href="/discover" className={linkClass}>Block a profile</Link>
+          <Link href="/discover" className={linkClass}>Report a user</Link>
+        </div>
       </section>}
 
       <section className={cardClass} aria-labelledby="account-actions-heading">
