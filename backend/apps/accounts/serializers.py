@@ -2,6 +2,8 @@ from datetime import date
 from uuid import uuid4
 
 from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
@@ -10,15 +12,31 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.utils import get_md5_hash_password
 from drf_spectacular.utils import extend_schema_field
 
-from .models import User
+from .models import RegistrationConsent, User
+
+
+# Bump only when the published Terms and Privacy Policy versions change.
+CURRENT_POLICY_VERSION = "draft-2026-10-07"
 
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, trim_whitespace=False)
+    accept_terms = serializers.BooleanField(required=True, error_messages={"required": "You must accept the Terms & Conditions to register."})
+    accept_privacy = serializers.BooleanField(required=True, error_messages={"required": "You must accept the Privacy Policy to register."})
 
     class Meta:
         model = User
-        fields = ("email", "password", "date_of_birth")
+        fields = ("email", "password", "date_of_birth", "accept_terms", "accept_privacy")
+
+    def validate_accept_terms(self, value: bool) -> bool:
+        if not value:
+            raise serializers.ValidationError("You must accept the Terms & Conditions to register.")
+        return value
+
+    def validate_accept_privacy(self, value: bool) -> bool:
+        if not value:
+            raise serializers.ValidationError("You must accept the Privacy Policy to register.")
+        return value
 
     def validate_email(self, value: str) -> str:
         email = value.lower()
@@ -37,6 +55,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         validate_password(value)
         return value
 
+    @transaction.atomic
     def create(self, validated_data: dict) -> User:
         # Keep username as a non-public compatibility field while email is the login identity.
         user = User(
@@ -46,6 +65,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         user.set_password(validated_data["password"])
         user.save()
+        RegistrationConsent.objects.create(
+            user=user,
+            terms_version=CURRENT_POLICY_VERSION,
+            privacy_version=CURRENT_POLICY_VERSION,
+            accepted_at=timezone.now(),
+        )
         return user
 
 

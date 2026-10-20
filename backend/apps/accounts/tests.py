@@ -1,13 +1,24 @@
 from datetime import date, timedelta
+from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.management import call_command, CommandError
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from .models import RegistrationConsent
+from .serializers import CURRENT_POLICY_VERSION
 
+
+@override_settings(REST_FRAMEWORK={**settings.REST_FRAMEWORK, "DEFAULT_THROTTLE_RATES": {"auth": "100/min"}})
 class AuthenticationApiTests(APITestCase):
+    def setUp(self):
+        cache.clear()
+
     def test_custom_user_model_is_configured(self):
         self.assertEqual(get_user_model()._meta.label, "accounts.User")
 
@@ -16,17 +27,67 @@ class AuthenticationApiTests(APITestCase):
             "email": "person@example.com",
             "password": "CorrectHorseBatteryStaple42!",
             "date_of_birth": "2000-01-01",
+            "accept_terms": True,
+            "accept_privacy": True,
         }
         payload.update(overrides)
         return payload
 
     def test_adult_can_register_and_password_is_hashed(self):
+        before = timezone.now()
         response = self.client.post("/api/v1/auth/register/", self.registration_payload(), format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         user = get_user_model().objects.get(email="person@example.com")
         self.assertTrue(user.check_password("CorrectHorseBatteryStaple42!"))
         self.assertNotEqual(user.password, "CorrectHorseBatteryStaple42!")
+        consent = RegistrationConsent.objects.get(user=user)
+        self.assertEqual(consent.terms_version, CURRENT_POLICY_VERSION)
+        self.assertEqual(consent.privacy_version, CURRENT_POLICY_VERSION)
+        self.assertGreaterEqual(consent.accepted_at, before)
+        self.assertLessEqual(consent.accepted_at, timezone.now())
+
+    def test_missing_terms_acceptance_is_rejected_without_creating_account(self):
+        payload = self.registration_payload()
+        del payload["accept_terms"]
+        response = self.client.post("/api/v1/auth/register/", payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("accept_terms", response.data["errors"])
+        self.assertFalse(get_user_model().objects.filter(email="person@example.com").exists())
+        self.assertEqual(RegistrationConsent.objects.count(), 0)
+
+    def test_missing_privacy_acceptance_is_rejected_without_creating_account(self):
+        payload = self.registration_payload()
+        del payload["accept_privacy"]
+        response = self.client.post("/api/v1/auth/register/", payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("accept_privacy", response.data["errors"])
+        self.assertFalse(get_user_model().objects.filter(email="person@example.com").exists())
+        self.assertEqual(RegistrationConsent.objects.count(), 0)
+
+    def test_false_policy_acceptances_are_rejected(self):
+        for field in ("accept_terms", "accept_privacy"):
+            with self.subTest(field=field):
+                response = self.client.post(
+                    "/api/v1/auth/register/",
+                    self.registration_payload(**{field: False}),
+                    format="json",
+                )
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertIn(field, response.data["errors"])
+
+        self.assertFalse(get_user_model().objects.filter(email="person@example.com").exists())
+        self.assertEqual(RegistrationConsent.objects.count(), 0)
+
+    def test_consent_failure_rolls_back_account_creation(self):
+        with patch.object(RegistrationConsent.objects, "create", side_effect=RuntimeError("consent storage unavailable")):
+            with self.assertRaises(RuntimeError):
+                self.client.post("/api/v1/auth/register/", self.registration_payload(), format="json")
+
+        self.assertFalse(get_user_model().objects.filter(email="person@example.com").exists())
+        self.assertEqual(RegistrationConsent.objects.count(), 0)
 
     def test_underage_registration_is_rejected(self):
         birth_date = date.today() - timedelta(days=17 * 365)
@@ -384,7 +445,11 @@ class AccountDeletionApiTests(APITestCase):
 
         self.assertTrue(get_user_model().objects.filter(pk=self.user.pk).exists())
 
+@override_settings(REST_FRAMEWORK={**settings.REST_FRAMEWORK, "DEFAULT_THROTTLE_RATES": {"auth": "100/min"}})
 class PasswordChangeApiTests(APITestCase):
+    def setUp(self):
+        cache.clear()
+
     password = "CorrectHorseBatteryStaple42!"
 
     def setUp(self):

@@ -94,8 +94,9 @@ export default function ProfileInterestsPage() {
           {available.length === 0 ? <p className="mt-4 text-sm text-[#6e5c56]">There are no interests available right now.</p> : <div className="mt-5 flex flex-wrap gap-3">
             {available.map((interest) => {
               const checked = selectedIds.includes(interest.id);
-              return <button key={interest.id} type="button" aria-pressed={checked} onClick={() => toggle(interest.id)} className={`min-h-12 rounded-xl border px-5 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a9513d] ${checked ? "border-[#bd7564] bg-[#fff3ee] font-semibold text-[#713d31]" : "border-[#eee7e5] bg-white text-[#493d38] hover:border-[#d5c4be] hover:bg-[#fdfaf8]"}`}>
-                {interest.name}{checked && <span className="sr-only">, selected</span>}
+              return <button key={interest.id} type="button" aria-pressed={checked} onClick={() => toggle(interest.id)} className={`inline-flex min-h-12 max-w-full items-center gap-2 rounded-xl border px-5 py-3 text-left text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a9513d] ${checked ? "border-[#bd7564] bg-[#fff3ee] font-semibold text-[#713d31]" : "border-[#eee7e5] bg-white text-[#493d38] hover:border-[#d5c4be] hover:bg-[#fdfaf8]"}`}>
+                <span className="break-words">{interest.name}</span>
+                {checked && <><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0 text-[#913f30]"><path d="m5 10 3.2 3.2L15.5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg><span className="sr-only">, selected</span></>}
               </button>;
             })}
           </div>}
